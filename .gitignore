@@ -1,7 +1,7 @@
 *.env
 
 # dependencies
-/node_modules
+summerbuild-frontend/node_modules
 /.pnp
 .pnp.js
 
