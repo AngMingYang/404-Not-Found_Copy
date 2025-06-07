@@ -12,7 +12,7 @@ app.use(express.urlencoded({ extended: true }));
 
 // Test route
 app.get('/', (req, res) => {
-    res.json({ message: 'Instagram API is running!' });
+    res.json({ message: 'App is running!' });
 });
 
 // Test Supabase connection
