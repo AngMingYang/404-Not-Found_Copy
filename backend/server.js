@@ -1,10 +1,17 @@
 const express = require('express');
 const cors = require('cors');
 const {createClient} = require('@supabase/supabase-js')
+const {createClient} = require('@supabase/supabase-js')
 require('dotenv').config();
 
 const app = express();
 const PORT = process.env.PORT || 8080;
+
+// Initialize Supabase client
+const supabase = createClient(
+    process.env.SUPABASE_URL,
+    process.env.SUPABASE_ANON_KEY
+);
 
 // Initialize Supabase client
 const supabase = createClient(
