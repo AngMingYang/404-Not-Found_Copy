@@ -1,9 +1,16 @@
 const express = require('express');
 const cors = require('cors');
+const {createClient} = require('@supabase/supabase-js')
 require('dotenv').config();
 
 const app = express();
 const PORT = process.env.PORT || 8080;
+
+// Initialize Supabase client
+const supabase = createClient(
+    process.env.SUPABASE_URL,
+    process.env.SUPABASE_ANON_KEY
+);
 
 // Middleware
 app.use(cors());
@@ -18,15 +25,15 @@ app.get('/', (req, res) => {
 // Test Supabase connection
 app.get('/test-db', async (req, res) => {
     try {
-        const { data, error } = await supabase
-            .from('posts')
-            .select('count', { count: 'exact' });
+        const { airportData, error } = await supabase
+            .from('airports')
+            .select('*');
 
     if (error) throw error;
 
     res.json({
         message: 'Supabase connected successfully!',
-        posts_count: data.length
+        airports: airportData
     });
     } catch (error) {
         console.error('Supabase connection error:', error);
