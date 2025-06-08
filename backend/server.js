@@ -485,7 +485,7 @@ app.use('*', (req, res) => {
     });
 });
 
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT || 8081;
 
 // Graceful shutdown
 process.on('SIGINT', () => {
