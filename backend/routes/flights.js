@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 
-// Import controller - but handle missing controllers gracefully
+// Import controller - now fully implemented
 let flightController;
 try {
     flightController = require('../controllers/flightController');
@@ -14,7 +14,8 @@ try {
         getAirportsByLocation: (req, res) => res.status(501).json({ error: 'Airport location search not implemented yet' }),
         getAirportByCode: (req, res) => res.status(501).json({ error: 'Airport by code not implemented yet' }),
         getAirportsByCity: (req, res) => res.status(501).json({ error: 'Airports by city not implemented yet' }),
-        getFlightOffer: (req, res) => res.status(501).json({ error: 'Flight offer not implemented yet' })
+        getFlightOffer: (req, res) => res.status(501).json({ error: 'Flight offer not implemented yet' }),
+        getFlightStatus: (req, res) => res.status(501).json({ error: 'Flight status not implemented yet' })
     };
 }
 
@@ -27,7 +28,7 @@ router.get('/search', flightController.searchFlights);
 router.post('/search', flightController.searchFlights);
 
 // Get all airports (with optional filters)
-// GET /api/flights/airports?city=New York&country=USA&iata_code=JFK
+// GET /api/flights/airports?keyword=New York&country=USA&max=10
 router.get('/airports', flightController.getAirports);
 
 // Search airports by location
@@ -46,5 +47,9 @@ router.get('/airports/city/:city', flightController.getAirportsByCity);
 // Get flight offers (if using Amadeus flight offers)
 // GET /api/flights/offers/:offerId
 router.get('/offers/:offerId', flightController.getFlightOffer);
+
+// Get flight status
+// GET /api/flights/status?carrier=AA&flight=100&date=2025-07-01
+router.get('/status', flightController.getFlightStatus);
 
 module.exports = router;
