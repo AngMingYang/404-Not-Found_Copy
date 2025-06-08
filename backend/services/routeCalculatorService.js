@@ -1,388 +1,468 @@
-// Load environment variables
-require('dotenv').config();
+// Route calculation service using Amadeus APIs
+// No Google Maps dependency - pure flight-based routing
 
-const supabaseService = require('./supabaseService');
+const amadeusService = require('./amadeusService');
 
-// Mock Google Maps API calls - replace with actual Google Maps integration
-const calculateDistance = (lat1, lng1, lat2, lng2) => {
-    const R = 6371; // Earth's radius in kilometers
-    const dLat = (lat2 - lat1) * Math.PI / 180;
-    const dLng = (lng2 - lng1) * Math.PI / 180;
-    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
-              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-              Math.sin(dLng/2) * Math.sin(dLng/2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-    return R * c;
-};
-
-const estimateTravelTime = (distanceKm, mode = 'driving') => {
-    const speeds = {
-        driving: 60,    // km/h average with traffic
-        walking: 5,     // km/h
-        transit: 30,    // km/h average including stops
-        flying: 800     // km/h commercial flight
-    };
-    
-    const speed = speeds[mode] || speeds.driving;
-    return Math.round((distanceKm / speed) * 60); // minutes
-};
-
-const getLocationCoordinates = async (location) => {
-    if (location.coordinates) {
-        return {
-            latitude: location.coordinates.lat,
-            longitude: location.coordinates.lng
-        };
+/**
+ * Calculate the most efficient route between multiple destinations
+ * Uses flight connections and travel times from Amadeus
+ */
+class RouteCalculator {
+    constructor() {
+        this.cache = new Map();
+        this.cacheTimeout = 30 * 60 * 1000; // 30 minutes
     }
-    
-    try {
-        if (location.type === 'airport' && location.id) {
-            const airport = await supabaseService.getAirportByCode(location.id.toString(), 'iata');
-            if (airport) {
-                return {
-                    latitude: parseFloat(airport.latitude),
-                    longitude: parseFloat(airport.longitude)
-                };
+
+    /**
+     * Calculate optimal route through multiple destinations
+     * @param {Array} destinations - Array of airport codes
+     * @param {Object} options - Route calculation options
+     */
+    async calculateOptimalRoute(destinations, options = {}) {
+        const {
+            startDate = new Date().toISOString().split('T')[0],
+            stayDuration = 2, // days per destination
+            passengers = 1,
+            budget = null,
+            preferences = {}
+        } = options;
+
+        if (destinations.length < 2) {
+            throw new Error('At least 2 destinations required for route calculation');
+        }
+
+        try {
+            // For small numbers of destinations, try all permutations
+            if (destinations.length <= 4) {
+                return await this.calculateAllPermutations(destinations, options);
+            } else {
+                // For larger numbers, use nearest neighbor heuristic
+                return await this.calculateNearestNeighbor(destinations, options);
             }
-        } else if (location.type === 'hotel' && location.id) {
-            const hotel = await supabaseService.getHotelById(location.id);
-            if (hotel) {
-                return {
-                    latitude: parseFloat(hotel.latitude),
-                    longitude: parseFloat(hotel.longitude)
-                };
+        } catch (error) {
+            throw new Error(`Route calculation failed: ${error.message}`);
+        }
+    }
+
+    /**
+     * Calculate all possible route permutations (for small destination sets)
+     */
+    async calculateAllPermutations(destinations, options) {
+        const permutations = this.getPermutations(destinations.slice(1), destinations[0]);
+        let bestRoute = null;
+        let bestScore = Infinity;
+
+        for (const perm of permutations.slice(0, 10)) { // Limit to first 10 permutations
+            try {
+                const route = await this.calculateRouteSegments(perm, options);
+                const score = this.calculateRouteScore(route, options);
+                
+                if (score < bestScore) {
+                    bestScore = score;
+                    bestRoute = route;
+                }
+            } catch (error) {
+                console.warn(`Failed to calculate route for permutation:`, error.message);
             }
         }
-    } catch (error) {
-        console.error('Error getting location coordinates:', error);
-    }
-    
-    throw new Error(`Could not determine coordinates for location: ${JSON.stringify(location)}`);
-};
 
-const calculateRoute = async ({ destinations, preferences = {}, startLocation }) => {
-    try {
-        const mode = preferences.mode || 'driving';
-        const optimize = preferences.optimize || 'time'; // 'time' or 'distance'
-        
-        // Get coordinates for all locations
-        const allLocations = startLocation ? [startLocation, ...destinations] : destinations;
-        const coordinates = await Promise.all(
-            allLocations.map(async (location) => ({
-                ...location,
-                coords: await getLocationCoordinates(location)
-            }))
-        );
-        
-        // Simple nearest neighbor algorithm for route optimization
-        let route = [];
-        let unvisited = [...coordinates];
-        let current = unvisited.shift(); // Start with first location
-        route.push(current);
-        
+        if (!bestRoute) {
+            throw new Error('No valid routes found');
+        }
+
+        return {
+            route: bestRoute,
+            score: bestScore,
+            algorithm: 'exhaustive_permutation',
+            alternatives: Math.min(permutations.length, 10)
+        };
+    }
+
+    /**
+     * Calculate route using nearest neighbor heuristic
+     */
+    async calculateNearestNeighbor(destinations, options) {
+        const unvisited = [...destinations.slice(1)];
+        const route = [destinations[0]];
+        let totalCost = 0;
+        let currentDate = new Date(options.startDate || Date.now());
+
         while (unvisited.length > 0) {
-            let nearest = null;
-            let minValue = Infinity;
+            const currentDestination = route[route.length - 1];
+            let nearestDestination = null;
+            let nearestCost = Infinity;
             let nearestIndex = -1;
-            
+
+            // Find nearest unvisited destination
             for (let i = 0; i < unvisited.length; i++) {
-                const candidate = unvisited[i];
-                const distance = calculateDistance(
-                    current.coords.latitude, current.coords.longitude,
-                    candidate.coords.latitude, candidate.coords.longitude
-                );
-                const time = estimateTravelTime(distance, mode);
-                const value = optimize === 'distance' ? distance : time;
+                const destination = unvisited[i];
+                try {
+                    const flightCost = await this.getFlightCost(
+                        currentDestination,
+                        destination,
+                        currentDate.toISOString().split('T')[0],
+                        options.passengers || 1
+                    );
+
+                    if (flightCost < nearestCost) {
+                        nearestCost = flightCost;
+                        nearestDestination = destination;
+                        nearestIndex = i;
+                    }
+                } catch (error) {
+                    console.warn(`Failed to get flight cost from ${currentDestination} to ${destination}`);
+                }
+            }
+
+            if (nearestDestination) {
+                route.push(nearestDestination);
+                unvisited.splice(nearestIndex, 1);
+                totalCost += nearestCost;
+                currentDate.setDate(currentDate.getDate() + (options.stayDuration || 2));
+            } else {
+                break; // No more reachable destinations
+            }
+        }
+
+        const routeSegments = await this.calculateRouteSegments(route, options);
+        
+        return {
+            route: routeSegments,
+            score: totalCost,
+            algorithm: 'nearest_neighbor',
+            unvisitedDestinations: unvisited
+        };
+    }
+
+    /**
+     * Calculate detailed route segments with flight information
+     */
+    async calculateRouteSegments(destinations, options) {
+        const segments = [];
+        let currentDate = new Date(options.startDate || Date.now());
+        let totalCost = 0;
+
+        for (let i = 0; i < destinations.length - 1; i++) {
+            const from = destinations[i];
+            const to = destinations[i + 1];
+            const departureDate = currentDate.toISOString().split('T')[0];
+
+            try {
+                const flightData = await this.getFlightDetails(from, to, departureDate, options.passengers || 1);
                 
-                if (value < minValue) {
-                    minValue = value;
-                    nearest = candidate;
-                    nearestIndex = i;
+                if (flightData) {
+                    segments.push({
+                        from: { code: from, type: 'airport' },
+                        to: { code: to, type: 'airport' },
+                        date: departureDate,
+                        flight: flightData,
+                        stayDuration: i < destinations.length - 2 ? options.stayDuration || 2 : 0
+                    });
+
+                    totalCost += flightData.price;
+                    
+                    // Add stay duration for next flight
+                    if (i < destinations.length - 2) {
+                        currentDate.setDate(currentDate.getDate() + (options.stayDuration || 2));
+                    }
+                } else {
+                    segments.push({
+                        from: { code: from, type: 'airport' },
+                        to: { code: to, type: 'airport' },
+                        date: departureDate,
+                        error: 'No flights available',
+                        stayDuration: 0
+                    });
+                }
+            } catch (error) {
+                segments.push({
+                    from: { code: from, type: 'airport' },
+                    to: { code: to, type: 'airport' },
+                    date: departureDate,
+                    error: error.message,
+                    stayDuration: 0
+                });
+            }
+        }
+
+        return {
+            destinations,
+            segments,
+            totalCost,
+            totalDuration: destinations.length * (options.stayDuration || 2),
+            currency: segments.find(s => s.flight)?.flight?.currency || 'USD',
+            startDate: options.startDate,
+            endDate: currentDate.toISOString().split('T')[0]
+        };
+    }
+
+    /**
+     * Get flight cost between two airports
+     */
+    async getFlightCost(origin, destination, date, passengers = 1) {
+        const cacheKey = `${origin}-${destination}-${date}-${passengers}`;
+        
+        if (this.cache.has(cacheKey)) {
+            const cached = this.cache.get(cacheKey);
+            if (Date.now() - cached.timestamp < this.cacheTimeout) {
+                return cached.cost;
+            }
+        }
+
+        try {
+            const result = await amadeusService.searchFlightOffers({
+                originLocationCode: origin,
+                destinationLocationCode: destination,
+                departureDate: date,
+                adults: passengers,
+                max: 1
+            });
+
+            if (result.success && result.data.length > 0) {
+                const cost = parseFloat(result.data[0].price.total);
+                
+                this.cache.set(cacheKey, {
+                    cost,
+                    timestamp: Date.now()
+                });
+                
+                return cost;
+            } else {
+                throw new Error('No flights found');
+            }
+        } catch (error) {
+            throw new Error(`Flight search failed: ${error.message}`);
+        }
+    }
+
+    /**
+     * Get detailed flight information
+     */
+    async getFlightDetails(origin, destination, date, passengers = 1) {
+        try {
+            const result = await amadeusService.searchFlightOffers({
+                originLocationCode: origin,
+                destinationLocationCode: destination,
+                departureDate: date,
+                adults: passengers,
+                max: 1
+            });
+
+            if (result.success && result.data.length > 0) {
+                const flight = result.data[0];
+                const itinerary = flight.itineraries[0];
+                
+                return {
+                    id: flight.id,
+                    price: parseFloat(flight.price.total),
+                    currency: flight.price.currency,
+                    duration: itinerary.duration,
+                    segments: itinerary.segments.map(segment => ({
+                        departure: {
+                            airport: segment.departure.iataCode,
+                            time: segment.departure.at,
+                            terminal: segment.departure.terminal
+                        },
+                        arrival: {
+                            airport: segment.arrival.iataCode,
+                            time: segment.arrival.at,
+                            terminal: segment.arrival.terminal
+                        },
+                        airline: segment.carrierCode,
+                        flightNumber: segment.number,
+                        duration: segment.duration
+                    })),
+                    stops: itinerary.segments.length - 1
+                };
+            }
+            
+            return null;
+        } catch (error) {
+            throw new Error(`Flight details search failed: ${error.message}`);
+        }
+    }
+
+    /**
+     * Calculate route score (lower is better)
+     */
+    calculateRouteScore(route, options) {
+        let score = route.totalCost;
+        
+        // Add penalties for various factors
+        const errorSegments = route.segments.filter(s => s.error).length;
+        score += errorSegments * 1000; // Heavy penalty for unavailable segments
+        
+        // Budget penalty
+        if (options.budget && route.totalCost > options.budget) {
+            score += (route.totalCost - options.budget) * 2;
+        }
+        
+        // Duration penalty for very long trips
+        if (route.totalDuration > 30) {
+            score += (route.totalDuration - 30) * 10;
+        }
+        
+        return score;
+    }
+
+    /**
+     * Generate all permutations of destinations
+     */
+    getPermutations(arr, start) {
+        if (arr.length <= 1) return [[start, ...arr]];
+        
+        const permutations = [];
+        for (let i = 0; i < arr.length; i++) {
+            const current = arr[i];
+            const remaining = arr.slice(0, i).concat(arr.slice(i + 1));
+            const remainingPerms = this.getPermutations(remaining, start);
+            
+            for (const perm of remainingPerms) {
+                const index = perm.indexOf(start);
+                perm.splice(index + 1, 0, current);
+                permutations.push([...perm]);
+            }
+        }
+        
+        return permutations;
+    }
+
+    /**
+     * Calculate travel time matrix between airports
+     */
+    async calculateTravelTimeMatrix(airports, date = new Date().toISOString().split('T')[0]) {
+        const matrix = [];
+        
+        for (const origin of airports) {
+            const row = [];
+            
+            for (const destination of airports) {
+                if (origin === destination) {
+                    row.push({
+                        origin,
+                        destination,
+                        duration: '0h 0m',
+                        cost: 0,
+                        available: true
+                    });
+                } else {
+                    try {
+                        const flightDetails = await this.getFlightDetails(origin, destination, date, 1);
+                        
+                        if (flightDetails) {
+                            row.push({
+                                origin,
+                                destination,
+                                duration: flightDetails.duration,
+                                cost: flightDetails.price,
+                                currency: flightDetails.currency,
+                                stops: flightDetails.stops,
+                                available: true
+                            });
+                        } else {
+                            row.push({
+                                origin,
+                                destination,
+                                available: false,
+                                reason: 'No flights available'
+                            });
+                        }
+                    } catch (error) {
+                        row.push({
+                            origin,
+                            destination,
+                            available: false,
+                            reason: 'Search error'
+                        });
+                    }
                 }
             }
             
-            if (nearest) {
-                route.push(nearest);
-                current = nearest;
-                unvisited.splice(nearestIndex, 1);
-            }
-        }
-        
-        // Calculate route segments
-        const segments = [];
-        let totalDistance = 0;
-        let totalTime = 0;
-        
-        for (let i = 0; i < route.length - 1; i++) {
-            const from = route[i];
-            const to = route[i + 1];
-            const distance = calculateDistance(
-                from.coords.latitude, from.coords.longitude,
-                to.coords.latitude, to.coords.longitude
-            );
-            const time = estimateTravelTime(distance, mode);
-            
-            segments.push({
-                from: {
-                    type: from.type,
-                    id: from.id,
-                    coordinates: from.coords
-                },
-                to: {
-                    type: to.type,
-                    id: to.id,
-                    coordinates: to.coords
-                },
-                distance_km: Math.round(distance * 10) / 10,
-                travel_time_minutes: time,
-                mode: mode
-            });
-            
-            totalDistance += distance;
-            totalTime += time;
-        }
-        
-        return {
-            success: true,
-            route: route.map(loc => ({
-                type: loc.type,
-                id: loc.id,
-                coordinates: loc.coords
-            })),
-            segments: segments,
-            summary: {
-                total_distance_km: Math.round(totalDistance * 10) / 10,
-                total_time_minutes: totalTime,
-                transportation_mode: mode,
-                optimization_method: optimize
-            },
-            metadata: {
-                calculated_at: new Date().toISOString(),
-                algorithm: 'nearest_neighbor'
-            }
-        };
-        
-    } catch (error) {
-        console.error('Route calculation error:', error);
-        throw error;
-    }
-};
-
-const calculateDirectRoute = async ({ origin, destination, mode = 'driving' }) => {
-    try {
-        const originCoords = await getLocationCoordinates(origin);
-        const destCoords = await getLocationCoordinates(destination);
-        
-        const distance = calculateDistance(
-            originCoords.latitude, originCoords.longitude,
-            destCoords.latitude, destCoords.longitude
-        );
-        const travelTime = estimateTravelTime(distance, mode);
-        
-        return {
-            origin: {
-                type: origin.type,
-                id: origin.id,
-                coordinates: originCoords
-            },
-            destination: {
-                type: destination.type,
-                id: destination.id,
-                coordinates: destCoords
-            },
-            distance_km: Math.round(distance * 10) / 10,
-            travel_time_minutes: travelTime,
-            transportation_mode: mode,
-            details: {
-                calculated_at: new Date().toISOString(),
-                straight_line_distance: true // In production, use actual routing
-            }
-        };
-        
-    } catch (error) {
-        console.error('Direct route calculation error:', error);
-        throw error;
-    }
-};
-
-const optimizeRoute = async ({ waypoints, startPoint, endPoint, preferences = {} }) => {
-    try {
-        const destinations = [...waypoints];
-        if (endPoint) destinations.push(endPoint);
-        
-        return await calculateRoute({
-            destinations,
-            preferences,
-            startLocation: startPoint
-        });
-        
-    } catch (error) {
-        console.error('Route optimization error:', error);
-        throw error;
-    }
-};
-
-const getTravelTimeMatrix = async ({ origins, destinations, mode = 'driving' }) => {
-    try {
-        const originCoords = await Promise.all(
-            origins.map(async (origin) => ({
-                ...origin,
-                coords: await getLocationCoordinates(origin)
-            }))
-        );
-        
-        const destCoords = await Promise.all(
-            destinations.map(async (dest) => ({
-                ...dest,
-                coords: await getLocationCoordinates(dest)
-            }))
-        );
-        
-        const matrix = [];
-        
-        for (let i = 0; i < originCoords.length; i++) {
-            const row = [];
-            for (let j = 0; j < destCoords.length; j++) {
-                const distance = calculateDistance(
-                    originCoords[i].coords.latitude, originCoords[i].coords.longitude,
-                    destCoords[j].coords.latitude, destCoords[j].coords.longitude
-                );
-                const time = estimateTravelTime(distance, mode);
-                
-                row.push({
-                    distance_km: Math.round(distance * 10) / 10,
-                    travel_time_minutes: time,
-                    mode: mode
-                });
-            }
             matrix.push(row);
         }
         
         return {
-            origins: originCoords.map(o => ({ type: o.type, id: o.id })),
-            destinations: destCoords.map(d => ({ type: d.type, id: d.id })),
-            matrix: matrix,
-            transportation_mode: mode,
-            calculated_at: new Date().toISOString()
+            matrix,
+            airports,
+            date,
+            generatedAt: new Date().toISOString()
         };
-        
-    } catch (error) {
-        console.error('Travel time matrix error:', error);
-        throw error;
     }
-};
 
-const getRouteStatistics = async ({ origin, destination }) => {
-    try {
-        // This would typically analyze historical route data
-        // For now, return mock statistics
+    /**
+     * Find shortest path between two airports (with possible connections)
+     */
+    async findShortestPath(origin, destination, maxConnections = 2) {
+        try {
+            // Direct flight first
+            const directFlight = await this.getFlightDetails(origin, destination, new Date().toISOString().split('T')[0], 1);
+            
+            if (directFlight) {
+                return {
+                    path: [origin, destination],
+                    totalCost: directFlight.price,
+                    totalDuration: directFlight.duration,
+                    connections: 0,
+                    segments: [directFlight]
+                };
+            }
+
+            // If no direct flight and connections allowed, implement connection search
+            if (maxConnections > 0) {
+                // This would require a more complex algorithm to find connecting flights
+                // For now, return indication that connection search is needed
+                return {
+                    path: [origin, destination],
+                    totalCost: null,
+                    totalDuration: null,
+                    connections: 'unknown',
+                    note: 'Connection search not implemented - consider implementing flight connection finder'
+                };
+            }
+
+            throw new Error('No direct flights available');
+            
+        } catch (error) {
+            throw new Error(`Path finding failed: ${error.message}`);
+        }
+    }
+
+    /**
+     * Clear cache
+     */
+    clearCache() {
+        this.cache.clear();
+    }
+
+    /**
+     * Get cache statistics
+     */
+    getCacheStats() {
+        const now = Date.now();
+        let validEntries = 0;
+        let expiredEntries = 0;
+
+        for (const [key, value] of this.cache.entries()) {
+            if (now - value.timestamp < this.cacheTimeout) {
+                validEntries++;
+            } else {
+                expiredEntries++;
+            }
+        }
+
         return {
-            route: `${origin.type}:${origin.id} -> ${destination.type}:${destination.id}`,
-            statistics: {
-                average_distance_km: 45.2,
-                average_travel_time_minutes: 52,
-                most_common_mode: 'driving',
-                peak_traffic_multiplier: 1.4,
-                off_peak_travel_time: 38,
-                popularity_score: 7.8
-            },
-            historical_data: {
-                searches_last_30_days: 42,
-                bookings_last_30_days: 8
-            },
-            calculated_at: new Date().toISOString()
+            totalEntries: this.cache.size,
+            validEntries,
+            expiredEntries,
+            cacheTimeout: this.cacheTimeout
         };
-        
-    } catch (error) {
-        console.error('Route statistics error:', error);
-        throw error;
     }
-};
+}
 
-const getPopularRoutes = async ({ limit = 10, timeframe = '30days' }) => {
-    try {
-        // This would typically query actual usage data
-        // For now, return mock popular routes
-        const mockRoutes = [
-            { origin: 'LAX', destination: 'Beverly Hills Hotel', count: 156 },
-            { origin: 'JFK', destination: 'Times Square', count: 134 },
-            { origin: 'LHR', destination: 'Central London', count: 112 },
-            { origin: 'DXB', destination: 'Dubai Marina', count: 98 },
-            { origin: 'SIN', destination: 'Marina Bay Sands', count: 87 }
-        ];
-        
-        return {
-            timeframe: timeframe,
-            routes: mockRoutes.slice(0, limit),
-            generated_at: new Date().toISOString()
-        };
-        
-    } catch (error) {
-        console.error('Popular routes error:', error);
-        throw error;
-    }
-};
-
-// Individual transportation mode functions
-const getDrivingDirections = async ({ origin, destination }) => {
-    const distance = calculateDistance(
-        origin.latitude, origin.longitude,
-        destination.latitude, destination.longitude
-    );
-    
-    return {
-        mode: 'driving',
-        distance_km: Math.round(distance * 10) / 10,
-        duration_minutes: estimateTravelTime(distance, 'driving'),
-        route_summary: 'Fastest route via main roads',
-        steps: [
-            { instruction: 'Head towards destination', distance_km: distance }
-        ]
-    };
-};
-
-const getPublicTransitRoute = async ({ origin, destination }) => {
-    const distance = calculateDistance(
-        origin.latitude, origin.longitude,
-        destination.latitude, destination.longitude
-    );
-    
-    return {
-        mode: 'transit',
-        distance_km: Math.round(distance * 10) / 10,
-        duration_minutes: estimateTravelTime(distance, 'transit'),
-        route_summary: 'Best public transit route',
-        steps: [
-            { instruction: 'Take public transit to destination', distance_km: distance }
-        ]
-    };
-};
-
-const getWalkingDirections = async ({ origin, destination }) => {
-    const distance = calculateDistance(
-        origin.latitude, origin.longitude,
-        destination.latitude, destination.longitude
-    );
-    
-    return {
-        mode: 'walking',
-        distance_km: Math.round(distance * 10) / 10,
-        duration_minutes: estimateTravelTime(distance, 'walking'),
-        route_summary: 'Walking route',
-        steps: [
-            { instruction: 'Walk to destination', distance_km: distance }
-        ]
-    };
-};
+// Create singleton instance
+const routeCalculator = new RouteCalculator();
 
 module.exports = {
-    calculateRoute,
-    calculateDirectRoute,
-    optimizeRoute,
-    getTravelTimeMatrix,
-    getRouteStatistics,
-    getPopularRoutes,
-    getDrivingDirections,
-    getPublicTransitRoute,
-    getWalkingDirections
+    routeCalculator,
+    RouteCalculator
 };

@@ -196,7 +196,8 @@ app.get('/api', (req, res) => {
         services: {
             amadeus: process.env.AMADEUS_CLIENT_ID ? 'configured' : 'not configured',
             supabase: process.env.SUPABASE_URL ? 'configured' : 'not configured',
-            caching: 'in-memory available'
+            caching: 'in-memory available',
+            routing: 'flight-based via Amadeus'
         },
         examples: {
             flightSearch: 'GET /api/flights/search?origin=LAX&destination=JFK&departureDate=2025-07-01&adults=2',
@@ -337,6 +338,7 @@ app.listen(PORT, () => {
         console.log('✅ Amadeus configuration found');
     } else {
         console.log('⚠️  Amadeus not configured (flight/hotel search will be limited)');
+        console.log('💡 Add AMADEUS_CLIENT_ID and AMADEUS_CLIENT_SECRET to enable full functionality');
     }
     
     console.log('====================================');
