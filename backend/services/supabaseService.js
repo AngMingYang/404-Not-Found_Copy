@@ -1,3 +1,6 @@
+// Load environment variables
+require('dotenv').config();
+
 const { createClient } = require('@supabase/supabase-js');
 
 const supabase = createClient(
@@ -196,6 +199,22 @@ const saveCachedRoute = async (routeData) => {
     }
 };
 
+const getCachedRouteById = async (routeId) => {
+    try {
+        const { data, error } = await supabase
+            .from('cached_routes')
+            .select('*')
+            .eq('id', routeId)
+            .single();
+        
+        if (error && error.code !== 'PGRST116') throw error;
+        return data;
+    } catch (error) {
+        console.error('Supabase cached route by ID fetch error:', error);
+        return null;
+    }
+};
+
 // USER LOCATION OPERATIONS
 const getUserLocations = async (userId, includeReferences = true) => {
     try {
@@ -236,6 +255,41 @@ const saveUserLocation = async (locationData) => {
     }
 };
 
+const updateUserLocation = async (locationId, userId, updateData) => {
+    try {
+        const { data, error } = await supabase
+            .from('user_locations')
+            .update(updateData)
+            .eq('id', locationId)
+            .eq('user_id', userId)
+            .select()
+            .single();
+        
+        if (error) throw error;
+        return data;
+    } catch (error) {
+        console.error('Supabase user location update error:', error);
+        throw error;
+    }
+};
+
+const deleteUserLocation = async (locationId, userId) => {
+    try {
+        const { data, error } = await supabase
+            .from('user_locations')
+            .delete()
+            .eq('id', locationId)
+            .eq('user_id', userId)
+            .select();
+        
+        if (error) throw error;
+        return data.length > 0;
+    } catch (error) {
+        console.error('Supabase user location delete error:', error);
+        throw error;
+    }
+};
+
 const getUserFavorites = async (userId) => {
     try {
         const { data, error } = await supabase
@@ -253,6 +307,24 @@ const getUserFavorites = async (userId) => {
         return data;
     } catch (error) {
         console.error('Supabase user favorites fetch error:', error);
+        throw error;
+    }
+};
+
+const toggleFavorite = async (locationId, userId, isFavorite) => {
+    try {
+        const { data, error } = await supabase
+            .from('user_locations')
+            .update({ is_favorite: isFavorite })
+            .eq('id', locationId)
+            .eq('user_id', userId)
+            .select()
+            .single();
+        
+        if (error) throw error;
+        return data;
+    } catch (error) {
+        console.error('Supabase toggle favorite error:', error);
         throw error;
     }
 };
@@ -295,61 +367,6 @@ const getUserSearchHistory = async (userId, limit = 10) => {
     }
 };
 
-// USER LOCATION MANAGEMENT (additional methods)
-const updateUserLocation = async (locationId, userId, updateData) => {
-    try {
-        const { data, error } = await supabase
-            .from('user_locations')
-            .update(updateData)
-            .eq('id', locationId)
-            .eq('user_id', userId)
-            .select()
-            .single();
-        
-        if (error) throw error;
-        return data;
-    } catch (error) {
-        console.error('Supabase user location update error:', error);
-        throw error;
-    }
-};
-
-const deleteUserLocation = async (locationId, userId) => {
-    try {
-        const { data, error } = await supabase
-            .from('user_locations')
-            .delete()
-            .eq('id', locationId)
-            .eq('user_id', userId)
-            .select();
-        
-        if (error) throw error;
-        return data.length > 0;
-    } catch (error) {
-        console.error('Supabase user location delete error:', error);
-        throw error;
-    }
-};
-
-const toggleFavorite = async (locationId, userId, isFavorite) => {
-    try {
-        const { data, error } = await supabase
-            .from('user_locations')
-            .update({ is_favorite: isFavorite })
-            .eq('id', locationId)
-            .eq('user_id', userId)
-            .select()
-            .single();
-        
-        if (error) throw error;
-        return data;
-    } catch (error) {
-        console.error('Supabase toggle favorite error:', error);
-        throw error;
-    }
-};
-
-// USER SEARCH MANAGEMENT (additional methods)
 const deleteUserSearch = async (searchId, userId) => {
     try {
         const { data, error } = await supabase
@@ -383,23 +400,6 @@ const clearUserSearchHistory = async (userId) => {
     }
 };
 
-// CACHED ROUTES (additional methods)
-const getCachedRouteById = async (routeId) => {
-    try {
-        const { data, error } = await supabase
-            .from('cached_routes')
-            .select('*')
-            .eq('id', routeId)
-            .single();
-        
-        if (error && error.code !== 'PGRST116') throw error;
-        return data;
-    } catch (error) {
-        console.error('Supabase cached route by ID fetch error:', error);
-        return null;
-    }
-};
-
 module.exports = {
     // Airport operations
     getAirports,
@@ -415,20 +415,19 @@ module.exports = {
     // Cached routes
     getCachedRoute,
     saveCachedRoute,
+    getCachedRouteById,
     
     // User locations
     getUserLocations,
     saveUserLocation,
+    updateUserLocation,
+    deleteUserLocation,
     getUserFavorites,
+    toggleFavorite,
     
     // User search history
     saveUserSearch,
     getUserSearchHistory,
-
-    updateUserLocation,
-    deleteUserLocation,
-    toggleFavorite,
     deleteUserSearch,
-    clearUserSearchHistory,
-    getCachedRouteById
+    clearUserSearchHistory
 };
