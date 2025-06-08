@@ -56,14 +56,14 @@ const checkEnvironmentVariables = () => {
 
     // Show current configuration
     console.log('\n📋 Current Configuration:');
-    console.log(`   PORT: ${process.env.PORT || '3001 (default)'}`);
+    console.log(`   PORT: ${process.env.PORT || '8080 (default)'}`);
     console.log(`   NODE_ENV: ${process.env.NODE_ENV || 'development (default)'}`);
     console.log(`   SUPABASE_URL: ${process.env.SUPABASE_URL ? '✅ Set' : '❌ Missing'}`);
     console.log(`   SUPABASE_ANON_KEY: ${process.env.SUPABASE_ANON_KEY ? '✅ Set' : '❌ Missing'}`);
     console.log(`   AMADEUS_CLIENT_ID: ${process.env.AMADEUS_CLIENT_ID ? '✅ Set' : '⚠️  Not set'}`);
     console.log(`   AMADEUS_CLIENT_SECRET: ${process.env.AMADEUS_CLIENT_SECRET ? '✅ Set' : '⚠️  Not set'}`);
     console.log(`   GOOGLE_MAPS_API_KEY: ${process.env.GOOGLE_MAPS_API_KEY ? '✅ Set' : '⚠️  Not set'}`);
-    console.log(`   CORS_ORIGIN: ${process.env.CORS_ORIGIN || 'default (localhost:8080, 8081)'}`);
+    console.log(`   CORS_ORIGIN: ${process.env.CORS_ORIGIN || 'default (localhost:3000,8080,3001)'}`);
 
     // Show package information
     console.log('\n📦 Package Information:');
