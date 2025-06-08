@@ -1,6 +1,29 @@
 const express = require('express');
 const router = express.Router();
-const userController = require('../controllers/userController');
+
+// Import controller - but handle missing controllers gracefully
+let userController;
+try {
+    userController = require('../controllers/userController');
+} catch (error) {
+    console.warn('⚠️  userController not found, using placeholder functions');
+    // Create placeholder functions
+    userController = {
+        getUserLocations: (req, res) => res.status(501).json({ error: 'Get user locations not implemented yet' }),
+        saveUserLocation: (req, res) => res.status(501).json({ error: 'Save user location not implemented yet' }),
+        updateUserLocation: (req, res) => res.status(501).json({ error: 'Update user location not implemented yet' }),
+        deleteUserLocation: (req, res) => res.status(501).json({ error: 'Delete user location not implemented yet' }),
+        getUserFavorites: (req, res) => res.status(501).json({ error: 'Get user favorites not implemented yet' }),
+        addToFavorites: (req, res) => res.status(501).json({ error: 'Add to favorites not implemented yet' }),
+        removeFromFavorites: (req, res) => res.status(501).json({ error: 'Remove from favorites not implemented yet' }),
+        getUserSearchHistory: (req, res) => res.status(501).json({ error: 'Get search history not implemented yet' }),
+        saveUserSearch: (req, res) => res.status(501).json({ error: 'Save user search not implemented yet' }),
+        deleteUserSearch: (req, res) => res.status(501).json({ error: 'Delete user search not implemented yet' }),
+        clearUserSearchHistory: (req, res) => res.status(501).json({ error: 'Clear search history not implemented yet' }),
+        getUserProfile: (req, res) => res.status(501).json({ error: 'Get user profile not implemented yet' }),
+        updateUserProfile: (req, res) => res.status(501).json({ error: 'Update user profile not implemented yet' })
+    };
+}
 
 // User location management
 

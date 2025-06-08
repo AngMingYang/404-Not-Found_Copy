@@ -13,11 +13,40 @@ const compression = require('compression');
 const rateLimit = require('express-rate-limit');
 const supabaseService = require('./services/supabaseService');
 
-// Import route modules
-const hotelRoutes = require('./routes/hotels');
-const flightRoutes = require('./routes/flights');
-const userRoutes = require('./routes/users');
-const routeRoutes = require('./routes/routes');
+// Import route modules with error handling
+let hotelRoutes, flightRoutes, userRoutes, routeRoutes;
+
+try {
+    hotelRoutes = require('./routes/hotels');
+} catch (error) {
+    console.warn('⚠️  Hotel routes not found, skipping...');
+    hotelRoutes = express.Router();
+    hotelRoutes.get('*', (req, res) => res.status(501).json({ error: 'Hotel routes not implemented yet' }));
+}
+
+try {
+    flightRoutes = require('./routes/flights');
+} catch (error) {
+    console.warn('⚠️  Flight routes not found, skipping...');
+    flightRoutes = express.Router();
+    flightRoutes.get('*', (req, res) => res.status(501).json({ error: 'Flight routes not implemented yet' }));
+}
+
+try {
+    userRoutes = require('./routes/users');
+} catch (error) {
+    console.warn('⚠️  User routes not found, skipping...');
+    userRoutes = express.Router();
+    userRoutes.get('*', (req, res) => res.status(501).json({ error: 'User routes not implemented yet' }));
+}
+
+try {
+    routeRoutes = require('./routes/routes');
+} catch (error) {
+    console.warn('⚠️  Route calculation routes not found, skipping...');
+    routeRoutes = express.Router();
+    routeRoutes.get('*', (req, res) => res.status(501).json({ error: 'Route calculation not implemented yet' }));
+}
 
 const app = express();
 

@@ -1,6 +1,20 @@
 const express = require('express');
 const router = express.Router();
-const hotelController = require('../controllers/hotelController');
+
+// Import controller - but handle missing controllers gracefully
+let hotelController;
+try {
+    hotelController = require('../controllers/hotelController');
+} catch (error) {
+    console.warn('⚠️  hotelController not found, using placeholder functions');
+    // Create placeholder functions
+    hotelController = {
+        searchHotels: (req, res) => res.status(501).json({ error: 'Hotel search not implemented yet' }),
+        getHotelDetails: (req, res) => res.status(501).json({ error: 'Hotel details not implemented yet' }),
+        searchHotelsByLocation: (req, res) => res.status(501).json({ error: 'Hotel location search not implemented yet' }),
+        getHotelsByCity: (req, res) => res.status(501).json({ error: 'Hotels by city not implemented yet' })
+    };
+}
 
 // Search hotels
 // POST /api/hotels/search

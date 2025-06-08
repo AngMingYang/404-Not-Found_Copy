@@ -1,6 +1,27 @@
 const express = require('express');
 const router = express.Router();
-const routeController = require('../controllers/routeController');
+
+// Import controller - but handle missing controllers gracefully
+let routeController;
+try {
+    routeController = require('../controllers/routeController');
+} catch (error) {
+    console.warn('⚠️  routeController not found, using placeholder functions');
+    // Create placeholder functions
+    routeController = {
+        calculateOptimalRoute: (req, res) => res.status(501).json({ error: 'Route calculation not implemented yet' }),
+        getDirectRoute: (req, res) => res.status(501).json({ error: 'Direct route not implemented yet' }),
+        getCachedRoute: (req, res) => res.status(501).json({ error: 'Cached route not implemented yet' }),
+        saveCachedRoute: (req, res) => res.status(501).json({ error: 'Save cached route not implemented yet' }),
+        optimizeMultiDestinationRoute: (req, res) => res.status(501).json({ error: 'Multi-destination optimization not implemented yet' }),
+        getTravelTimeMatrix: (req, res) => res.status(501).json({ error: 'Travel time matrix not implemented yet' }),
+        getRouteStatistics: (req, res) => res.status(501).json({ error: 'Route statistics not implemented yet' }),
+        getPopularRoutes: (req, res) => res.status(501).json({ error: 'Popular routes not implemented yet' }),
+        getDrivingRoute: (req, res) => res.status(501).json({ error: 'Driving route not implemented yet' }),
+        getTransitRoute: (req, res) => res.status(501).json({ error: 'Transit route not implemented yet' }),
+        getWalkingRoute: (req, res) => res.status(501).json({ error: 'Walking route not implemented yet' })
+    };
+}
 
 // Route calculation and optimization
 

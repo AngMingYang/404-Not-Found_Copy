@@ -1,6 +1,22 @@
 const express = require('express');
 const router = express.Router();
-const flightController = require('../controllers/flightController');
+
+// Import controller - but handle missing controllers gracefully
+let flightController;
+try {
+    flightController = require('../controllers/flightController');
+} catch (error) {
+    console.warn('⚠️  flightController not found, using placeholder functions');
+    // Create placeholder functions
+    flightController = {
+        searchFlights: (req, res) => res.status(501).json({ error: 'Flight search not implemented yet' }),
+        getAirports: (req, res) => res.status(501).json({ error: 'Get airports not implemented yet' }),
+        getAirportsByLocation: (req, res) => res.status(501).json({ error: 'Airport location search not implemented yet' }),
+        getAirportByCode: (req, res) => res.status(501).json({ error: 'Airport by code not implemented yet' }),
+        getAirportsByCity: (req, res) => res.status(501).json({ error: 'Airports by city not implemented yet' }),
+        getFlightOffer: (req, res) => res.status(501).json({ error: 'Flight offer not implemented yet' })
+    };
+}
 
 // Search flights
 // GET /api/flights/search?origin=LAX&destination=JFK&departureDate=2025-07-01&returnDate=2025-07-08&passengers=2
