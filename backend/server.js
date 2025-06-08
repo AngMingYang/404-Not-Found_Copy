@@ -25,18 +25,24 @@ app.get('/', (req, res) => {
 // Test Supabase connection
 app.get('/test-db', async (req, res) => {
     try {
-        const [airportsResult, hotelsResult] = await Promise.all([
-            supabase.from('airports').select('*'),
-            supabase.from('hotels').select('*')
-        ]);
+        // Query airports table
+        const { data: airportData, error: airportError } = await supabase
+            .from('airports')
+            .select('*');
 
-        if (airportsResult.error) throw airportsResult.error;
-        if (hotelsResult.error) throw hotelsResult.error;
+        if (airportError) throw airportError;
+
+        // Query hotels table
+        const { data: hotelData, error: hotelError } = await supabase
+            .from('hotels')
+            .select('*');
+
+        if (hotelError) throw hotelError;
 
         res.json({
             message: 'Supabase connected successfully!',
-            airports: airportsResult.data,
-            hotels: hotelsResult.data
+            airports: airportData,
+            hotels: hotelData
         });
     } catch (error) {
         console.error('Supabase connection error:', error);
