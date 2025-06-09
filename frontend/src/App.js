@@ -124,7 +124,26 @@ const TravelApp = () => {
       }
 
       console.log('Search results:', results);
-      setSearchResults(results.data || []);
+      
+      // Handle different response formats from backend
+      let resultsArray = [];
+      if (results) {
+        if (Array.isArray(results)) {
+          resultsArray = results;
+        } else if (results.data && Array.isArray(results.data)) {
+          resultsArray = results.data;
+        } else if (results.data && results.data.flights && Array.isArray(results.data.flights)) {
+          resultsArray = results.data.flights;
+        } else if (results.flights && Array.isArray(results.flights)) {
+          resultsArray = results.flights;
+        } else {
+          console.warn('Unexpected response format:', results);
+          resultsArray = [];
+        }
+      }
+      
+      console.log('Processed results array:', resultsArray);
+      setSearchResults(resultsArray);
       setActiveTab('results');
 
       console.log('Search results:', results);
@@ -372,92 +391,99 @@ const TravelApp = () => {
   ), [searchForm, searchType, isLoading, handleInputChange, handleSearch]);
 
   // Results component
-  const Results = () => (
-    <div className="max-w-6xl mx-auto p-6">
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="text-2xl font-bold text-gray-800">
-          {searchType === 'flights' ? 'Flight Results' : 'Hotel Results'}
-        </h2>
-        <div className="flex items-center space-x-4">
-          <button className="flex items-center px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">
-            <Filter size={16} className="mr-2" />
-            Filter
-          </button>
-        </div>
-      </div>
-      
-      {searchResults.length === 0 ? (
-        <div className="text-center py-12">
-          <div className="text-gray-400 mb-4">
-            {searchType === 'flights' ? <Plane size={48} /> : <Hotel size={48} />}
+  const Results = () => {
+    // Ensure searchResults is always an array
+    const results = Array.isArray(searchResults) ? searchResults : [];
+    
+    return (
+      <div className="max-w-6xl mx-auto p-6">
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-2xl font-bold text-gray-800">
+            {searchType === 'flights' ? 'Flight Results' : 'Hotel Results'}
+          </h2>
+          <div className="flex items-center space-x-4">
+            <button className="flex items-center px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">
+              <Filter size={16} className="mr-2" />
+              Filter
+            </button>
           </div>
-          <p className="text-gray-600">No results found. Try adjusting your search criteria.</p>
         </div>
-      ) : (
-        <div className="grid gap-4">
-          {searchResults.map((item, index) => (
-            <div key={index} className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow">
-              <div className="flex items-center justify-between">
-                <div className="flex-1">
-                  {searchType === 'flights' ? (
-                    <div className="flex items-center space-x-4">
-                      <div className="text-lg font-semibold">{item.origin} → {item.destination}</div>
-                      <div className="text-sm text-gray-600">{item.duration || '2h 30m'}</div>
-                      <div className="text-sm text-gray-600">{item.airline || 'Various Airlines'}</div>
-                    </div>
-                  ) : (
-                    <div>
-                      <h3 className="text-lg font-semibold">{item.name || 'Hotel Name'}</h3>
-                      <p className="text-sm text-gray-600">{item.location || searchForm.destination}</p>
-                      <div className="flex items-center mt-1">
-                        {[...Array(5)].map((_, i) => (
-                          <Star
-                            key={i}
-                            size={16}
-                            className={`${i < (item.rating || 4) ? 'text-yellow-400 fill-current' : 'text-gray-300'}`}
-                          />
-                        ))}
-                        <span className="ml-2 text-sm text-gray-600">({item.reviews || '245'} reviews)</span>
+        
+        {results.length === 0 ? (
+          <div className="text-center py-12">
+            <div className="text-gray-400 mb-4">
+              {searchType === 'flights' ? <Plane size={48} /> : <Hotel size={48} />}
+            </div>
+            <p className="text-gray-600">No results found. Try adjusting your search criteria.</p>
+          </div>
+        ) : (
+          <div className="grid gap-4">
+            {results.map((item, index) => (
+              <div key={index} className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow">
+                <div className="flex items-center justify-between">
+                  <div className="flex-1">
+                    {searchType === 'flights' ? (
+                      <div className="flex items-center space-x-4">
+                        <div className="text-lg font-semibold">
+                          {item.outboundJourney?.segments?.[0]?.departure?.airport || item.origin || searchForm.origin} → {item.outboundJourney?.segments?.[item.outboundJourney.segments.length - 1]?.arrival?.airport || item.destination || searchForm.destination}
+                        </div>
+                        <div className="text-sm text-gray-600">{item.outboundJourney?.duration || item.duration || '2h 30m'}</div>
+                        <div className="text-sm text-gray-600">{item.outboundJourney?.segments?.[0]?.airline || item.airline || 'Various Airlines'}</div>
                       </div>
-                    </div>
-                  )}
-                </div>
-                
-                <div className="flex items-center space-x-4">
-                  <div className="text-right">
-                    <div className="text-2xl font-bold text-blue-600">
-                      ${item.price || (searchType === 'flights' ? '299' : '159')}
-                    </div>
-                    <div className="text-sm text-gray-600">
-                      {searchType === 'flights' ? 'per person' : 'per night'}
-                    </div>
+                    ) : (
+                      <div>
+                        <h3 className="text-lg font-semibold">{item.name || 'Hotel Name'}</h3>
+                        <p className="text-sm text-gray-600">{item.location || searchForm.destination}</p>
+                        <div className="flex items-center mt-1">
+                          {[...Array(5)].map((_, i) => (
+                            <Star
+                              key={i}
+                              size={16}
+                              className={`${i < (item.rating || 4) ? 'text-yellow-400 fill-current' : 'text-gray-300'}`}
+                            />
+                          ))}
+                          <span className="ml-2 text-sm text-gray-600">({item.reviews || '245'} reviews)</span>
+                        </div>
+                      </div>
+                    )}
                   </div>
                   
-                  <button
-                    onClick={() => toggleFavorite({ ...item, id: index, type: searchType })}
-                    className="p-2 rounded-full hover:bg-gray-100 transition-colors"
-                  >
-                    <Heart
-                      size={20}
-                      className={`${
-                        favorites.some(fav => fav.id === index) 
-                          ? 'text-red-500 fill-current' 
-                          : 'text-gray-400'
-                      }`}
-                    />
-                  </button>
-                  
-                  <button className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors">
-                    {searchType === 'flights' ? 'Book Flight' : 'Book Hotel'}
-                  </button>
+                  <div className="flex items-center space-x-4">
+                    <div className="text-right">
+                      <div className="text-2xl font-bold text-blue-600">
+                        ${item.pricing?.total || item.price || (searchType === 'flights' ? '299' : '159')}
+                      </div>
+                      <div className="text-sm text-gray-600">
+                        {searchType === 'flights' ? 'per person' : 'per night'}
+                      </div>
+                    </div>
+                    
+                    <button
+                      onClick={() => toggleFavorite({ ...item, id: index, type: searchType })}
+                      className="p-2 rounded-full hover:bg-gray-100 transition-colors"
+                    >
+                      <Heart
+                        size={20}
+                        className={`${
+                          favorites.some(fav => fav.id === index) 
+                            ? 'text-red-500 fill-current' 
+                            : 'text-gray-400'
+                        }`}
+                      />
+                    </button>
+                    
+                    <button className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors">
+                      {searchType === 'flights' ? 'Book Flight' : 'Book Hotel'}
+                    </button>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  };
 
   // Favorites component
   const Favorites = () => (
