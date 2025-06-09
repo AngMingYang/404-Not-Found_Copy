@@ -132,19 +132,27 @@ const TravelApp = () => {
         }
         
         // Try multiple search strategies
-        const searchStrategies = [
-          // Strategy 1: Try exact city name
-          { city: cityName, country },
-          // Strategy 2: Try major airport codes (often work better)
-          { city: getCityAirportCode(cityName), country },
-          // Strategy 3: Try without country
-          { city: cityName, country: '' },
-          // Strategy 4: Try alternative city names
-          { city: getAlternativeCityName(cityName), country }
-        ].filter(strategy => strategy.city && strategy.city !== cityName); // Remove duplicates
+        const searchStrategies = [];
         
-        // Add original as first strategy
-        searchStrategies.unshift({ city: cityName, country });
+        // Strategy 1: Exact city name
+        searchStrategies.push({ city: cityName, country, label: 'exact' });
+        
+        // Strategy 2: Alternative city names (better for hotels)
+        const altName = getAlternativeCityName(cityName);
+        if (altName && altName !== cityName) {
+          searchStrategies.push({ city: altName, country, label: 'alternative' });
+        }
+        
+        // Strategy 3: Without country (sometimes country filtering causes issues)
+        if (country) {
+          searchStrategies.push({ city: cityName, country: '', label: 'no country' });
+        }
+        
+        // Strategy 4: Try major city codes (only for cities that work well)
+        const cityCode = getBetterCityCode(cityName);
+        if (cityCode && cityCode !== cityName) {
+          searchStrategies.push({ city: cityCode, country, label: 'city code' });
+        }
         
         let lastError = null;
         let results = null;
@@ -169,19 +177,18 @@ const TravelApp = () => {
           
           endpoint = `/api/hotels/search?${params.toString()}`;
           
-          console.log(`Hotel search strategy ${i + 1}:`, strategy);
-          console.log('Hotel search URL:', `${API_BASE}${endpoint}`);
+          console.log(`Hotel strategy ${i + 1} (${strategy.label}):`, strategy.city, strategy.country ? `in ${strategy.country}` : '');
           
           try {
             results = await apiCall(endpoint, { method: 'GET' });
-            console.log(`Strategy ${i + 1} succeeded!`);
+            console.log(`✅ Strategy ${i + 1} (${strategy.label}) succeeded!`);
             break; // Success, exit loop
           } catch (error) {
-            console.log(`Strategy ${i + 1} failed:`, error.message);
+            console.log(`❌ Strategy ${i + 1} (${strategy.label}) failed:`, error.message);
             lastError = error;
             
             // If it's not a "city not found" error, don't try other strategies
-            if (!error.message.includes('City not found')) {
+            if (!error.message.includes('City not found') && !error.message.includes('Hotel search service unavailable')) {
               throw error;
             }
           }
@@ -193,37 +200,98 @@ const TravelApp = () => {
         }
       }
       
-      function getCityAirportCode(cityName) {
-        const airportMappings = {
-          'singapore': 'SIN',
+      function getBetterCityCode(cityName) {
+        // Use official Amadeus city codes for hotel searches (from documentation)
+        const cityMappings = {
+          'paris': 'PAR',
+          'london': 'LON', 
           'new york': 'NYC',
           'new york city': 'NYC',
-          'los angeles': 'LAX',
-          'san francisco': 'SFO',
-          'london': 'LHR',
-          'paris': 'CDG',
-          'tokyo': 'NRT',
-          'bangkok': 'BKK',
+          'nyc': 'NYC',
+          'madrid': 'MAD',
+          'barcelona': 'BCN',
+          'rome': 'ROM',
+          'milan': 'MIL',
+          'amsterdam': 'AMS',
+          'berlin': 'BER',
+          'munich': 'MUC',
+          'vienna': 'VIE',
+          'zurich': 'ZUR',
+          'geneva': 'GVA',
+          'brussels': 'BRU',
+          'stockholm': 'STO',
+          'oslo': 'OSL',
+          'copenhagen': 'CPH',
+          'helsinki': 'HEL',
+          'warsaw': 'WAW',
+          'prague': 'PRG',
+          'budapest': 'BUD',
+          'athens': 'ATH',
+          'istanbul': 'IST',
+          'moscow': 'MOW',
           'dubai': 'DXB',
+          'doha': 'DOH',
+          'singapore': 'SIN',
+          'bangkok': 'BKK',
+          'tokyo': 'TYO',
+          'osaka': 'OSA',
+          'seoul': 'SEL',
+          'beijing': 'BJS',
+          'shanghai': 'SHA',
           'hong kong': 'HKG',
+          'mumbai': 'BOM',
+          'delhi': 'DEL',
           'sydney': 'SYD',
           'melbourne': 'MEL',
-          'toronto': 'YYZ',
+          'toronto': 'YTO',
           'vancouver': 'YVR',
-          'montreal': 'YUL'
+          'montreal': 'YMQ',
+          'los angeles': 'LAX',
+          'san francisco': 'SFO',
+          'chicago': 'CHI',
+          'miami': 'MIA',
+          'boston': 'BOS',
+          'washington': 'WAS',
+          'las vegas': 'LAS',
+          'sao paulo': 'SAO',
+          'rio de janeiro': 'RIO',
+          'buenos aires': 'BUE',
+          'mexico city': 'MEX',
+          'cairo': 'CAI',
+          'casablanca': 'CAS',
+          'johannesburg': 'JNB',
+          'cape town': 'CPT'
         };
-        return airportMappings[cityName.toLowerCase()] || null;
+        return cityMappings[cityName.toLowerCase()] || null;
       }
       
       function getAlternativeCityName(cityName) {
+        // Keep alternative names but also try without extra descriptors
         const alternatives = {
-          'singapore': 'Singapore City',
-          'new york': 'New York City',
+          'paris': 'Paris',
+          'london': 'London', 
+          'singapore': 'Singapore',
+          'bangkok': 'Bangkok',
+          'tokyo': 'Tokyo',
+          'new york': 'New York',
           'new york city': 'New York',
-          'san francisco': 'San Francisco Bay Area',
+          'san francisco': 'San Francisco',
           'los angeles': 'Los Angeles',
-          'las vegas': 'Las Vegas',
-          'hong kong': 'Hong Kong SAR'
+          'miami': 'Miami',
+          'chicago': 'Chicago',
+          'boston': 'Boston',
+          'dubai': 'Dubai',
+          'hong kong': 'Hong Kong',
+          'sydney': 'Sydney',
+          'melbourne': 'Melbourne',
+          'toronto': 'Toronto',
+          'vancouver': 'Vancouver',
+          'madrid': 'Madrid',
+          'barcelona': 'Barcelona',
+          'rome': 'Rome',
+          'milan': 'Milan',
+          'amsterdam': 'Amsterdam',
+          'berlin': 'Berlin'
         };
         return alternatives[cityName.toLowerCase()] || null;
       }
