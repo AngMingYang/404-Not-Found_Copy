@@ -684,19 +684,84 @@ const TravelApp = () => {
                 <div className="flex items-center justify-between">
                   <div className="flex-1">
                     {searchType === 'flights' ? (
-                      <div className="flex items-center space-x-4">
-                        <div className="text-lg font-semibold">
-                          {item.outboundJourney?.segments?.[0]?.departure?.airport || searchForm.origin} → {item.outboundJourney?.segments?.[item.outboundJourney?.segments?.length - 1]?.arrival?.airport || searchForm.destination}
-                        </div>
-                        <div className="text-sm text-gray-600">
-                          {item.outboundJourney?.duration || '2h 30m'}
-                        </div>
-                        <div className="text-sm text-gray-600">
-                          {item.outboundJourney?.segments?.[0]?.airline || 'Airlines'}
-                        </div>
-                        {item.outboundJourney?.segments?.[0]?.departure?.time && (
+                      <div>
+                        <div className="flex items-center space-x-4 mb-2">
+                          <div className="text-lg font-semibold">
+                            {item.outboundJourney?.segments?.[0]?.departure?.airport || searchForm.origin} → {item.outboundJourney?.segments?.[item.outboundJourney?.segments?.length - 1]?.arrival?.airport || searchForm.destination}
+                          </div>
                           <div className="text-sm text-gray-600">
-                            Departs: {new Date(item.outboundJourney.segments[0].departure.time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                            {item.outboundJourney?.duration || '2h 30m'}
+                          </div>
+                        </div>
+                        
+                        {/* Flight Details */}
+                        <div className="flex items-center space-x-6 text-sm text-gray-600">
+                          {/* Airline */}
+                          <div className="flex items-center space-x-1">
+                            <Plane size={14} />
+                            <span>{item.outboundJourney?.segments?.[0]?.airline || 'Various Airlines'}</span>
+                            {item.outboundJourney?.segments?.[0]?.flightNumber && (
+                              <span className="font-mono">
+                                {item.outboundJourney.segments[0].airline}{item.outboundJourney.segments[0].flightNumber}
+                              </span>
+                            )}
+                          </div>
+                          
+                          {/* Departure Time */}
+                          {item.outboundJourney?.segments?.[0]?.departure?.time && (
+                            <div className="flex items-center space-x-1">
+                              <Clock size={14} />
+                              <span>Departs:</span>
+                              <span className="font-mono">
+                                {new Date(item.outboundJourney.segments[0].departure.time).toLocaleTimeString([], {
+                                  hour: '2-digit', 
+                                  minute: '2-digit',
+                                  hour12: false
+                                })}
+                              </span>
+                            </div>
+                          )}
+                          
+                          {/* Arrival Time */}
+                          {item.outboundJourney?.segments?.[item.outboundJourney.segments.length - 1]?.arrival?.time && (
+                            <div className="flex items-center space-x-1">
+                              <span>Arrives:</span>
+                              <span className="font-mono">
+                                {new Date(item.outboundJourney.segments[item.outboundJourney.segments.length - 1].arrival.time).toLocaleTimeString([], {
+                                  hour: '2-digit', 
+                                  minute: '2-digit',
+                                  hour12: false
+                                })}
+                              </span>
+                            </div>
+                          )}
+                          
+                          {/* Stops */}
+                          {item.outboundJourney?.segments && item.outboundJourney.segments.length > 1 && (
+                            <div className="text-orange-600">
+                              {item.outboundJourney.segments.length - 1} stop{item.outboundJourney.segments.length > 2 ? 's' : ''}
+                            </div>
+                          )}
+                        </div>
+                        
+                        {/* Return Flight Info (if available) */}
+                        {item.inboundJourney && (
+                          <div className="mt-2 pt-2 border-t border-gray-200">
+                            <div className="text-sm text-gray-600">
+                              <span className="font-medium">Return:</span>
+                              <span className="ml-2">
+                                {item.inboundJourney.segments?.[0]?.departure?.airport} → {item.inboundJourney.segments?.[item.inboundJourney.segments.length - 1]?.arrival?.airport}
+                              </span>
+                              {item.inboundJourney.segments?.[0]?.departure?.time && (
+                                <span className="ml-4">
+                                  {new Date(item.inboundJourney.segments[0].departure.time).toLocaleTimeString([], {
+                                    hour: '2-digit', 
+                                    minute: '2-digit',
+                                    hour12: false
+                                  })}
+                                </span>
+                              )}
+                            </div>
                           </div>
                         )}
                       </div>
