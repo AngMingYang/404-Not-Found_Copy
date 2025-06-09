@@ -19,11 +19,14 @@ const searchHotels = async (req, res) => {
             max = 20
         } = req.query;
 
+        console.log('🏨 Hotel search request:', { city, country, checkIn, checkOut, adults, rooms });
+
         // Validation
         if (!city) {
             return res.status(400).json({
                 success: false,
-                error: 'Missing required parameter: city'
+                error: 'Missing required parameter: city',
+                received: req.query
             });
         }
 
@@ -31,13 +34,15 @@ const searchHotels = async (req, res) => {
             return res.status(400).json({
                 success: false,
                 error: 'Missing required dates',
-                required: ['checkIn', 'checkOut']
+                required: ['checkIn', 'checkOut'],
+                received: { checkIn, checkOut }
             });
         }
 
         try {
             // Step 1: Convert city name to proper Amadeus city code
             const cityCode = getCityCode(city);
+            console.log('🏨 City code mapping:', city, '->', cityCode);
             
             if (!cityCode) {
                 return res.status(400).json({
@@ -48,18 +53,50 @@ const searchHotels = async (req, res) => {
                 });
             }
 
-            // Step 2: Get hotels in the city
-            const hotelListResult = await amadeusService.getHotelsByCity(cityCode);
-            
-            if (!hotelListResult.success) {
-                return res.status(502).json({
+            // Step 2: Check if amadeusService methods exist
+            if (!amadeusService.getHotelsByCity) {
+                console.error('❌ getHotelsByCity method not found in amadeusService');
+                return res.status(500).json({
                     success: false,
-                    error: 'Hotel search service unavailable',
-                    message: hotelListResult.error
+                    error: 'Hotel service not properly configured',
+                    message: 'getHotelsByCity method missing'
                 });
             }
 
-            if (hotelListResult.data.length === 0) {
+            if (!amadeusService.searchHotelOffers) {
+                console.error('❌ searchHotelOffers method not found in amadeusService');
+                return res.status(500).json({
+                    success: false,
+                    error: 'Hotel service not properly configured', 
+                    message: 'searchHotelOffers method missing'
+                });
+            }
+
+            // Step 3: Get hotels in the city
+            console.log('🏨 Calling getHotelsByCity with:', cityCode);
+            const hotelListResult = await amadeusService.getHotelsByCity(cityCode);
+            console.log('🏨 Hotel list result:', hotelListResult);
+            
+            if (!hotelListResult) {
+                console.error('❌ hotelListResult is undefined');
+                return res.status(502).json({
+                    success: false,
+                    error: 'Hotel search service unavailable',
+                    message: 'getHotelsByCity returned undefined'
+                });
+            }
+
+            if (!hotelListResult.success) {
+                console.error('❌ Hotel list search failed:', hotelListResult.error);
+                return res.status(502).json({
+                    success: false,
+                    error: 'Hotel search service unavailable',
+                    message: hotelListResult.error || 'Hotel list search failed'
+                });
+            }
+
+            if (!hotelListResult.data || hotelListResult.data.length === 0) {
+                console.log('🏨 No hotels found in city');
                 return res.json({
                     success: true,
                     data: {
@@ -71,69 +108,82 @@ const searchHotels = async (req, res) => {
                 });
             }
 
-            // Step 3: Get available offers for these hotels
+            console.log(`🏨 Found ${hotelListResult.data.length} hotels`);
+
+            // Step 4: Get available offers for these hotels
             const hotelIds = hotelListResult.data
-                .slice(0, Math.min(parseInt(max), 50))
+                .slice(0, Math.min(parseInt(max), 10)) // Limit to 10 for testing
                 .map(hotel => hotel.hotelId);
 
-            const offersResult = await amadeusService.searchHotelOffers({
+            console.log('🏨 Getting offers for hotels:', hotelIds);
+
+            const offersParams = {
                 hotelIds,
                 adults: parseInt(adults),
                 checkInDate: checkIn,
                 checkOutDate: checkOut,
                 roomQuantity: parseInt(rooms),
                 currency: currency.toUpperCase()
-            });
+            };
 
-            if (!offersResult.success) {
+            console.log('🏨 Offers search params:', offersParams);
+            const offersResult = await amadeusService.searchHotelOffers(offersParams);
+            console.log('🏨 Offers result:', offersResult);
+
+            if (!offersResult) {
+                console.error('❌ offersResult is undefined');
                 return res.status(502).json({
                     success: false,
                     error: 'Hotel offers search failed',
-                    message: offersResult.error
+                    message: 'searchHotelOffers returned undefined'
                 });
             }
 
-            // Step 4: Process and format results
-            const processedHotels = offersResult.data.map(hotelOffer => {
-                const hotel = hotelListResult.data.find(h => h.hotelId === hotelOffer.hotel.hotelId);
+            if (!offersResult.success) {
+                console.error('❌ Hotel offers search failed:', offersResult.error);
+                return res.status(502).json({
+                    success: false,
+                    error: 'Hotel offers search failed',
+                    message: offersResult.error || 'Offers search failed'
+                });
+            }
+
+            // Step 5: Process and format results
+            const processedHotels = (offersResult.data || []).map(hotelOffer => {
+                const hotel = hotelListResult.data.find(h => h.hotelId === hotelOffer.hotel?.hotelId);
                 
                 return {
-                    id: hotelOffer.hotel.hotelId,
+                    id: hotelOffer.hotel?.hotelId || 'unknown',
                     type: 'hotel-offer',
                     hotel: {
-                        name: hotelOffer.hotel.name,
-                        rating: hotelOffer.hotel.rating,
-                        chainCode: hotelOffer.hotel.chainCode,
+                        name: hotelOffer.hotel?.name || 'Unknown Hotel',
+                        rating: hotelOffer.hotel?.rating || 3,
+                        chainCode: hotelOffer.hotel?.chainCode,
                         address: hotel?.address || {},
-                        amenities: hotelOffer.hotel.amenities || [],
+                        amenities: hotelOffer.hotel?.amenities || [],
                         geoCode: hotel?.geoCode || {}
                     },
-                    offers: hotelOffer.offers.map(offer => ({
+                    offers: (hotelOffer.offers || []).map(offer => ({
                         id: offer.id,
                         checkInDate: offer.checkInDate,
                         checkOutDate: offer.checkOutDate,
                         roomQuantity: offer.roomQuantity,
                         rateCode: offer.rateCode,
                         price: {
-                            currency: offer.price.currency,
-                            base: parseFloat(offer.price.base),
-                            total: parseFloat(offer.price.total),
-                            variations: offer.price.variations
+                            currency: offer.price?.currency || currency,
+                            base: parseFloat(offer.price?.base || 0),
+                            total: parseFloat(offer.price?.total || 0),
+                            variations: offer.price?.variations
                         },
                         room: offer.room,
                         guests: offer.guests,
                         policies: offer.policies
                     })),
-                    available: hotelOffer.available
+                    available: hotelOffer.available !== false
                 };
             });
 
-            // Sort by price (lowest first)
-            processedHotels.sort((a, b) => {
-                const priceA = a.offers[0]?.price?.total || 999999;
-                const priceB = b.offers[0]?.price?.total || 999999;
-                return priceA - priceB;
-            });
+            console.log(`🏨 Processed ${processedHotels.length} hotel offers`);
 
             return res.json({
                 success: true,
@@ -149,23 +199,25 @@ const searchHotels = async (req, res) => {
             });
 
         } catch (amadeusError) {
-            console.error('Amadeus hotel search error:', amadeusError);
+            console.error('🏨 Amadeus hotel search error:', amadeusError);
             return res.status(502).json({
                 success: false,
                 error: 'Hotel search service unavailable',
-                message: amadeusError.message
+                message: amadeusError.message || 'Unknown Amadeus error',
+                details: process.env.NODE_ENV === 'development' ? amadeusError : undefined
             });
         }
 
     } catch (error) {
-        console.error('Hotel search error:', error);
+        console.error('🏨 Hotel search error:', error);
         return res.status(500).json({
             success: false,
             error: 'Internal server error',
-            message: error.message
+            message: error.message || 'Unknown error'
         });
     }
 };
+
 
 // Add city code mapping function
 function getCityCode(cityName) {
