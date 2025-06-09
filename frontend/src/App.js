@@ -319,25 +319,39 @@ const TravelApp = () => {
       // Handle different response formats from backend
       let resultsArray = [];
       if (results) {
+        console.log('Results type:', typeof results);
+        console.log('Results keys:', Object.keys(results));
+        
         if (Array.isArray(results)) {
           resultsArray = results;
+          console.log('Using results as direct array');
         } else if (results.data && Array.isArray(results.data)) {
           resultsArray = results.data;
+          console.log('Using results.data as array');
         } else if (results.data && results.data.flights && Array.isArray(results.data.flights)) {
           resultsArray = results.data.flights;
+          console.log('Using results.data.flights as array');
         } else if (results.data && results.data.hotels && Array.isArray(results.data.hotels)) {
           resultsArray = results.data.hotels;
+          console.log('Using results.data.hotels as array');
         } else if (results.flights && Array.isArray(results.flights)) {
           resultsArray = results.flights;
+          console.log('Using results.flights as array');
         } else if (results.hotels && Array.isArray(results.hotels)) {
           resultsArray = results.hotels;
+          console.log('Using results.hotels as array');
         } else {
           console.warn('Unexpected response format:', results);
+          console.warn('Available properties:', Object.keys(results));
           resultsArray = [];
         }
+      } else {
+        console.error('Results is null/undefined:', results);
+        resultsArray = [];
       }
       
-      console.log('Processed results array:', resultsArray);
+      console.log('Final processed results array:', resultsArray);
+      console.log('Results array length:', resultsArray.length);
       setSearchResults(resultsArray);  // Store the array directly, not the whole object
       setActiveTab('results');
 
@@ -599,20 +613,31 @@ const TravelApp = () => {
     // Handle both array and object formats for searchResults
     let results = [];
     
+    console.log('Results component - searchResults:', searchResults);
+    console.log('Results component - searchResults type:', typeof searchResults);
+    
     if (Array.isArray(searchResults)) {
       results = searchResults;
+      console.log('Using searchResults as direct array');
     } else if (searchResults && searchResults.flights && Array.isArray(searchResults.flights)) {
       results = searchResults.flights;
+      console.log('Using searchResults.flights');
     } else if (searchResults && searchResults.hotels && Array.isArray(searchResults.hotels)) {
       results = searchResults.hotels;
+      console.log('Using searchResults.hotels');
+    } else if (searchResults && searchResults.data && Array.isArray(searchResults.data)) {
+      results = searchResults.data;
+      console.log('Using searchResults.data');
     } else if (searchResults && Array.isArray(searchResults.data)) {
       results = searchResults.data;
+      console.log('Using searchResults.data (fallback)');
+    } else {
+      console.warn('Could not extract results array from:', searchResults);
+      results = [];
     }
     
-    console.log('Results component - searchResults type:', typeof searchResults);
-    console.log('Results component - searchResults:', searchResults);
-    console.log('Results component - results array length:', results.length);
-    console.log('Results component - first result:', results[0]);
+    console.log('Final results for display:', results);
+    console.log('Results array length:', results.length);
     
     return (
       <div className="max-w-6xl mx-auto p-6">
