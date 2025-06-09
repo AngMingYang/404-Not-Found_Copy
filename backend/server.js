@@ -8,6 +8,14 @@ const morgan = require('morgan');
 const compression = require('compression');
 const rateLimit = require('express-rate-limit');
 
+const amadeus = new Amadeus({
+  clientId: process.env.AMADEUS_CLIENT_ID,
+  clientSecret: process.env.AMADEUS_CLIENT_SECRET
+});
+
+console.log("Amadeus Client ID:", process.env.AMADEUS_CLIENT_ID);
+
+
 const app = express();
 
 // Security middleware
