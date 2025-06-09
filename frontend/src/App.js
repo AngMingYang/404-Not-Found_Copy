@@ -73,9 +73,21 @@ const TravelApp = () => {
 
   // Search function
   const handleSearch = useCallback(async () => {
-    if (!searchForm.origin || !searchForm.destination) {
-      alert('Please enter both origin and destination');
-      return;
+    // Different validation for flights vs hotels
+    if (searchType === 'flights') {
+      if (!searchForm.origin || !searchForm.destination) {
+        alert('Please enter both origin and destination for flight search');
+        return;
+      }
+    } else if (searchType === 'hotels') {
+      if (!searchForm.destination) {
+        alert('Please enter a destination for hotel search');
+        return;
+      }
+      if (!searchForm.departDate || !searchForm.returnDate) {
+        alert('Please select check-in and check-out dates for hotel search');
+        return;
+      }
     }
 
     setIsLoading(true);
@@ -109,8 +121,19 @@ const TravelApp = () => {
         
       } else if (searchType === 'hotels') {
         // Build query parameters for GET request
+        // Try different city name formats to improve success rate
+        let cityName = searchForm.destination.trim();
+        
+        // Remove common words that might cause issues
+        cityName = cityName
+          .replace(/\s+city$/i, '') // Remove "City" at the end
+          .replace(/^new\s+york\s+city$/i, 'New York') // Specific fix for NYC
+          .replace(/^las\s+vegas$/i, 'Las Vegas')
+          .replace(/^los\s+angeles$/i, 'Los Angeles')
+          .replace(/^san\s+francisco$/i, 'San Francisco');
+        
         const params = new URLSearchParams({
-          city: searchForm.destination,
+          city: cityName,
           checkIn: searchForm.departDate,
           checkOut: searchForm.returnDate,
           adults: searchForm.passengers.toString(),
@@ -120,6 +143,9 @@ const TravelApp = () => {
         });
         
         endpoint = `/api/hotels/search?${params.toString()}`;
+        
+        console.log('Hotel search city:', cityName);
+        console.log('Hotel search URL:', `${API_BASE}${endpoint}`);
         
         // Use GET request for hotels
         results = await apiCall(endpoint, {
@@ -292,26 +318,31 @@ const TravelApp = () => {
         
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">From</label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              {searchType === 'flights' ? 'From' : 'From (optional)'}
+            </label>
             <div className="relative">
               <MapPin size={18} className="absolute left-3 top-3 text-gray-400" />
               <input
                 type="text"
-                placeholder="Origin city or airport"
+                placeholder={searchType === 'flights' ? 'Origin city or airport' : 'Origin (optional)'}
                 value={searchForm.origin}
                 onChange={(e) => handleInputChange('origin', e.target.value)}
                 className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                disabled={searchType === 'hotels'}
               />
             </div>
           </div>
           
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">To</label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              {searchType === 'flights' ? 'To' : 'Destination City'}
+            </label>
             <div className="relative">
               <MapPin size={18} className="absolute left-3 top-3 text-gray-400" />
               <input
                 type="text"
-                placeholder="Destination city or airport"
+                placeholder={searchType === 'flights' ? 'Destination city or airport' : 'City name (e.g., New York, Paris)'}
                 value={searchForm.destination}
                 onChange={(e) => handleInputChange('destination', e.target.value)}
                 className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -320,7 +351,9 @@ const TravelApp = () => {
           </div>
           
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Departure</label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              {searchType === 'flights' ? 'Departure' : 'Check-in'}
+            </label>
             <div className="relative">
               <Calendar size={18} className="absolute left-3 top-3 text-gray-400" />
               <input
@@ -333,7 +366,9 @@ const TravelApp = () => {
           </div>
           
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Return</label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              {searchType === 'flights' ? 'Return' : 'Check-out'}
+            </label>
             <div className="relative">
               <Calendar size={18} className="absolute left-3 top-3 text-gray-400" />
               <input
