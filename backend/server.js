@@ -209,49 +209,88 @@ app.get('/api', (req, res) => {
 });
 
 // Import route modules with error handling
+console.log('📁 Loading route modules...');
+
 let hotelRoutes, flightRoutes, userRoutes, routeRoutes;
 
 try {
     hotelRoutes = require('./routes/hotels');
     console.log('✅ Hotel routes loaded');
 } catch (error) {
-    console.warn('⚠️  Hotel routes not found, using fallback');
+    console.warn('⚠️  Hotel routes not found, creating fallback router');
     hotelRoutes = express.Router();
-    hotelRoutes.all('*', (req, res) => res.status(501).json({ error: 'Hotel routes not fully implemented yet' }));
+    hotelRoutes.get('/search', (req, res) => res.status(501).json({ error: 'Hotel routes not implemented yet' }));
+    hotelRoutes.post('/search', (req, res) => res.status(501).json({ error: 'Hotel routes not implemented yet' }));
+    hotelRoutes.get('/chains', (req, res) => res.status(501).json({ error: 'Hotel routes not implemented yet' }));
+    hotelRoutes.get('/amenities', (req, res) => res.status(501).json({ error: 'Hotel routes not implemented yet' }));
+    hotelRoutes.get('/:id', (req, res) => res.status(501).json({ error: 'Hotel routes not implemented yet' }));
 }
 
 try {
     flightRoutes = require('./routes/flights');
     console.log('✅ Flight routes loaded');
 } catch (error) {
-    console.warn('⚠️  Flight routes not found, using fallback');
+    console.warn('⚠️  Flight routes not found, creating fallback router');
     flightRoutes = express.Router();
-    flightRoutes.all('*', (req, res) => res.status(501).json({ error: 'Flight routes not fully implemented yet' }));
+    flightRoutes.get('/search', (req, res) => res.status(501).json({ error: 'Flight routes not implemented yet' }));
+    flightRoutes.post('/search', (req, res) => res.status(501).json({ error: 'Flight routes not implemented yet' }));
+    flightRoutes.get('/airports', (req, res) => res.status(501).json({ error: 'Flight routes not implemented yet' }));
+    flightRoutes.get('/status', (req, res) => res.status(501).json({ error: 'Flight routes not implemented yet' }));
 }
 
 try {
     userRoutes = require('./routes/users');
     console.log('✅ User routes loaded');
 } catch (error) {
-    console.warn('⚠️  User routes not found, using fallback');
+    console.warn('⚠️  User routes not found, creating fallback router');
     userRoutes = express.Router();
-    userRoutes.all('*', (req, res) => res.status(501).json({ error: 'User routes not fully implemented yet' }));
+    userRoutes.get('/:userId/locations', (req, res) => res.status(501).json({ error: 'User routes not implemented yet' }));
+    userRoutes.post('/:userId/locations', (req, res) => res.status(501).json({ error: 'User routes not implemented yet' }));
+    userRoutes.get('/:userId/favorites', (req, res) => res.status(501).json({ error: 'User routes not implemented yet' }));
+    userRoutes.get('/:userId/profile', (req, res) => res.status(501).json({ error: 'User routes not implemented yet' }));
 }
 
 try {
     routeRoutes = require('./routes/routes');
     console.log('✅ Route calculation routes loaded');
 } catch (error) {
-    console.warn('⚠️  Route calculation routes not found, using fallback');
+    console.warn('⚠️  Route calculation routes not found, creating fallback router');
     routeRoutes = express.Router();
-    routeRoutes.all('*', (req, res) => res.status(501).json({ error: 'Route calculation not fully implemented yet' }));
+    routeRoutes.post('/calculate', (req, res) => res.status(501).json({ error: 'Route calculation not implemented yet' }));
+    routeRoutes.get('/direct', (req, res) => res.status(501).json({ error: 'Route calculation not implemented yet' }));
+    routeRoutes.post('/optimize', (req, res) => res.status(501).json({ error: 'Route calculation not implemented yet' }));
 }
 
-// Use the route modules
-app.use('/api/hotels', hotelRoutes);
-app.use('/api/flights', flightRoutes);
-app.use('/api/users', userRoutes);
-app.use('/api/routes', routeRoutes);
+// Use the route modules - mount them safely
+console.log('🔗 Mounting API routes...');
+
+try {
+    app.use('/api/hotels', hotelRoutes);
+    console.log('✅ Hotel routes mounted at /api/hotels');
+} catch (error) {
+    console.error('❌ Failed to mount hotel routes:', error.message);
+}
+
+try {
+    app.use('/api/flights', flightRoutes);
+    console.log('✅ Flight routes mounted at /api/flights');
+} catch (error) {
+    console.error('❌ Failed to mount flight routes:', error.message);
+}
+
+try {
+    app.use('/api/users', userRoutes);
+    console.log('✅ User routes mounted at /api/users');
+} catch (error) {
+    console.error('❌ Failed to mount user routes:', error.message);
+}
+
+try {
+    app.use('/api/routes', routeRoutes);
+    console.log('✅ Route calculation routes mounted at /api/routes');
+} catch (error) {
+    console.error('❌ Failed to mount route calculation routes:', error.message);
+}
 
 // Error handling middleware
 app.use((err, req, res, next) => {
