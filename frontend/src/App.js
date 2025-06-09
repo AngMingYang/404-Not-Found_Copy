@@ -120,8 +120,7 @@ const TravelApp = () => {
         });
         
       } else if (searchType === 'hotels') {
-        // Build query parameters for GET request
-        // Try different city name formats to improve success rate
+        // Build query parameters for GET request with multiple fallback strategies
         let cityName = searchForm.destination.trim();
         let country = '';
         
@@ -132,57 +131,101 @@ const TravelApp = () => {
           country = parts[1];
         }
         
-        // Common city name mappings for better Amadeus compatibility
-        const cityMappings = {
-          'new york': 'NYC',
-          'new york city': 'NYC', 
-          'nyc': 'NYC',
-          'los angeles': 'LAX',
-          'la': 'LAX',
-          'san francisco': 'SFO',
-          'sf': 'SFO',
-          'las vegas': 'LAS',
-          'vegas': 'LAS',
-          'chicago': 'CHI',
-          'washington': 'WAS',
-          'washington dc': 'WAS',
-          'boston': 'BOS',
-          'miami': 'MIA',
-          'paris': 'PAR',
-          'london': 'LON',
-          'tokyo': 'TYO',
-          'rome': 'ROM'
-        };
+        // Try multiple search strategies
+        const searchStrategies = [
+          // Strategy 1: Try exact city name
+          { city: cityName, country },
+          // Strategy 2: Try major airport codes (often work better)
+          { city: getCityAirportCode(cityName), country },
+          // Strategy 3: Try without country
+          { city: cityName, country: '' },
+          // Strategy 4: Try alternative city names
+          { city: getAlternativeCityName(cityName), country }
+        ].filter(strategy => strategy.city && strategy.city !== cityName); // Remove duplicates
         
-        const cityKey = cityName.toLowerCase();
-        const finalCityName = cityMappings[cityKey] || cityName;
+        // Add original as first strategy
+        searchStrategies.unshift({ city: cityName, country });
         
-        const params = new URLSearchParams({
-          city: finalCityName,
-          checkIn: searchForm.departDate,
-          checkOut: searchForm.returnDate,
-          adults: searchForm.passengers.toString(),
-          rooms: searchForm.rooms.toString(),
-          currency: 'USD',
-          max: '20'
-        });
+        let lastError = null;
+        let results = null;
         
-        // Add country if we detected one
-        if (country) {
-          params.append('country', country);
+        // Try each strategy until one works
+        for (let i = 0; i < searchStrategies.length; i++) {
+          const strategy = searchStrategies[i];
+          
+          const params = new URLSearchParams({
+            city: strategy.city,
+            checkIn: searchForm.departDate,
+            checkOut: searchForm.returnDate,
+            adults: searchForm.passengers.toString(),
+            rooms: searchForm.rooms.toString(),
+            currency: 'USD',
+            max: '20'
+          });
+          
+          if (strategy.country) {
+            params.append('country', strategy.country);
+          }
+          
+          endpoint = `/api/hotels/search?${params.toString()}`;
+          
+          console.log(`Hotel search strategy ${i + 1}:`, strategy);
+          console.log('Hotel search URL:', `${API_BASE}${endpoint}`);
+          
+          try {
+            results = await apiCall(endpoint, { method: 'GET' });
+            console.log(`Strategy ${i + 1} succeeded!`);
+            break; // Success, exit loop
+          } catch (error) {
+            console.log(`Strategy ${i + 1} failed:`, error.message);
+            lastError = error;
+            
+            // If it's not a "city not found" error, don't try other strategies
+            if (!error.message.includes('City not found')) {
+              throw error;
+            }
+          }
         }
         
-        endpoint = `/api/hotels/search?${params.toString()}`;
-        
-        console.log('Hotel search - Original:', searchForm.destination);
-        console.log('Hotel search - Final city:', finalCityName);
-        console.log('Hotel search - Country:', country || 'none');
-        console.log('Hotel search URL:', `${API_BASE}${endpoint}`);
-        
-        // Use GET request for hotels
-        results = await apiCall(endpoint, {
-          method: 'GET'
-        });
+        // If all strategies failed, throw the last error
+        if (!results) {
+          throw lastError || new Error('All hotel search strategies failed');
+        }
+      }
+      
+      function getCityAirportCode(cityName) {
+        const airportMappings = {
+          'singapore': 'SIN',
+          'new york': 'NYC',
+          'new york city': 'NYC',
+          'los angeles': 'LAX',
+          'san francisco': 'SFO',
+          'london': 'LHR',
+          'paris': 'CDG',
+          'tokyo': 'NRT',
+          'bangkok': 'BKK',
+          'dubai': 'DXB',
+          'hong kong': 'HKG',
+          'sydney': 'SYD',
+          'melbourne': 'MEL',
+          'toronto': 'YYZ',
+          'vancouver': 'YVR',
+          'montreal': 'YUL'
+        };
+        return airportMappings[cityName.toLowerCase()] || null;
+      }
+      
+      function getAlternativeCityName(cityName) {
+        const alternatives = {
+          'singapore': 'Singapore City',
+          'new york': 'New York City',
+          'new york city': 'New York',
+          'san francisco': 'San Francisco Bay Area',
+          'los angeles': 'Los Angeles',
+          'las vegas': 'Las Vegas',
+          'hong kong': 'Hong Kong SAR'
+        };
+        return alternatives[cityName.toLowerCase()] || null;
       }
 
       console.log('Search results:', results);
