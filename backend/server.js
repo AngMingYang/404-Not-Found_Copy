@@ -1,5 +1,7 @@
 // Load environment variables first
 require('dotenv').config();
+const Amadeus = require('amadeus');
+
 
 const express = require('express');
 const cors = require('cors');
@@ -12,6 +14,7 @@ const amadeus = new Amadeus({
   clientId: process.env.AMADEUS_CLIENT_ID,
   clientSecret: process.env.AMADEUS_CLIENT_SECRET
 });
+
 
 console.log("Amadeus Client ID:", process.env.AMADEUS_CLIENT_ID);
 
@@ -261,6 +264,7 @@ app.use('/api/flights', flightRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/routes', routeRoutes);
 
+
 // Error handling middleware
 app.use((err, req, res, next) => {
     console.error('Error:', err);
@@ -282,8 +286,9 @@ app.use((err, req, res, next) => {
     });
 });
 
+/*
 // 404 handler
-app.use('*', (req, res) => {
+app.all('*', (req, res) => {
     res.status(404).json({
         success: false,
         message: `Route not found: ${req.method} ${req.originalUrl}`,
@@ -299,6 +304,8 @@ app.use('*', (req, res) => {
         timestamp: new Date().toISOString()
     });
 });
+
+*/
 
 const PORT = process.env.PORT || 8080;
 
