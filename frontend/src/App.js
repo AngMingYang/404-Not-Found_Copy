@@ -143,7 +143,7 @@ const TravelApp = () => {
       }
       
       console.log('Processed results array:', resultsArray);
-      setSearchResults(resultsArray);
+      setSearchResults(resultsArray);  // Store the array directly, not the whole object
       setActiveTab('results');
 
       console.log('Search results:', results);
@@ -392,8 +392,21 @@ const TravelApp = () => {
 
   // Results component
   const Results = () => {
-    // Ensure searchResults is always an array
-    const results = Array.isArray(searchResults) ? searchResults : [];
+    // Handle both array and object formats for searchResults
+    let results = [];
+    
+    if (Array.isArray(searchResults)) {
+      results = searchResults;
+    } else if (searchResults && searchResults.flights && Array.isArray(searchResults.flights)) {
+      results = searchResults.flights;
+    } else if (searchResults && Array.isArray(searchResults.data)) {
+      results = searchResults.data;
+    }
+    
+    console.log('Results component - searchResults type:', typeof searchResults);
+    console.log('Results component - searchResults:', searchResults);
+    console.log('Results component - results array length:', results.length);
+    console.log('Results component - first result:', results[0]);
     
     return (
       <div className="max-w-6xl mx-auto p-6">
@@ -425,10 +438,19 @@ const TravelApp = () => {
                     {searchType === 'flights' ? (
                       <div className="flex items-center space-x-4">
                         <div className="text-lg font-semibold">
-                          {item.outboundJourney?.segments?.[0]?.departure?.airport || item.origin || searchForm.origin} → {item.outboundJourney?.segments?.[item.outboundJourney.segments.length - 1]?.arrival?.airport || item.destination || searchForm.destination}
+                          {item.outboundJourney?.segments?.[0]?.departure?.airport || searchForm.origin} → {item.outboundJourney?.segments?.[item.outboundJourney?.segments?.length - 1]?.arrival?.airport || searchForm.destination}
                         </div>
-                        <div className="text-sm text-gray-600">{item.outboundJourney?.duration || item.duration || '2h 30m'}</div>
-                        <div className="text-sm text-gray-600">{item.outboundJourney?.segments?.[0]?.airline || item.airline || 'Various Airlines'}</div>
+                        <div className="text-sm text-gray-600">
+                          {item.outboundJourney?.duration || '2h 30m'}
+                        </div>
+                        <div className="text-sm text-gray-600">
+                          {item.outboundJourney?.segments?.[0]?.airline || 'Airlines'}
+                        </div>
+                        {item.outboundJourney?.segments?.[0]?.departure?.time && (
+                          <div className="text-sm text-gray-600">
+                            Departs: {new Date(item.outboundJourney.segments[0].departure.time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                          </div>
+                        )}
                       </div>
                     ) : (
                       <div>
@@ -451,10 +473,10 @@ const TravelApp = () => {
                   <div className="flex items-center space-x-4">
                     <div className="text-right">
                       <div className="text-2xl font-bold text-blue-600">
-                        ${item.pricing?.total || item.price || (searchType === 'flights' ? '299' : '159')}
+                        ${item.pricing?.total || item.pricing?.grandTotal || item.price || '299'}
                       </div>
                       <div className="text-sm text-gray-600">
-                        {searchType === 'flights' ? 'per person' : 'per night'}
+                        {item.pricing?.currency || 'USD'} {searchType === 'flights' ? 'per person' : 'per night'}
                       </div>
                     </div>
                     
