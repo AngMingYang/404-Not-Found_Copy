@@ -173,7 +173,6 @@ const TravelApp = () => {
         }
         
         let lastError = null;
-        let results = null;
         
         // Try each strategy until one works
         for (let i = 0; i < searchStrategies.length; i++) {
