@@ -286,6 +286,10 @@ app.use((err, req, res, next) => {
     });
 });
 
+
+//currently this is buggy and will crash with  C:\Github\summerbuild2025\backend\node_modules\path-to-regexp\dist\index.js:73
+//            throw new TypeError(Missing parameter name at ${i}: ${DEBUG_URL});
+
 /*
 // 404 handler
 app.all('*', (req, res) => {
