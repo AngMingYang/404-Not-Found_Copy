@@ -48,14 +48,32 @@ const TravelApp = () => {
       console.log('Response status:', response.status);
       console.log('Response headers:', response.headers);
       
+      // Always try to get response text first
+      const responseText = await response.text();
+      console.log('Raw response text:', responseText);
+      
       if (!response.ok) {
-        const errorText = await response.text();
-        console.log('Error response body:', errorText);
-        throw new Error(`API Error: ${response.status} - ${errorText}`);
+        let errorData;
+        try {
+          errorData = JSON.parse(responseText);
+        } catch (parseError) {
+          errorData = { message: responseText };
+        }
+        
+        const errorMessage = errorData.message || errorData.error || `HTTP ${response.status}`;
+        throw new Error(`API Error: ${response.status} - ${errorMessage}`);
       }
       
-      const responseData = await response.json();
-      console.log('Response data:', responseData);
+      // Parse JSON response
+      let responseData;
+      try {
+        responseData = JSON.parse(responseText);
+      } catch (parseError) {
+        console.error('Failed to parse JSON response:', parseError);
+        throw new Error('Invalid JSON response from server');
+      }
+      
+      console.log('Parsed response data:', responseData);
       return responseData;
     } catch (error) {
       console.error('API call failed:', error);
