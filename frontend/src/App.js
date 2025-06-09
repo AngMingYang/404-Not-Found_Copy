@@ -482,145 +482,270 @@ const TravelApp = () => {
 
   // Memoized search form component
   const SearchForm = useMemo(() => (
-    <div className="max-w-4xl mx-auto p-6">
-      <div className="bg-white rounded-xl shadow-lg p-6">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-bold text-gray-800">Plan Your Trip</h2>
-          <div className="flex bg-gray-100 rounded-lg p-1">
-            <button
-              onClick={() => setSearchType('flights')}
-              className={`px-4 py-2 rounded-md transition-colors ${
-                searchType === 'flights' ? 'bg-white shadow text-blue-600' : 'text-gray-600'
-              }`}
-            >
-              <Plane size={16} className="inline mr-2" />
-              Flights
-            </button>
-            <button
-              onClick={() => setSearchType('hotels')}
-              className={`px-4 py-2 rounded-md transition-colors ${
-                searchType === 'hotels' ? 'bg-white shadow text-blue-600' : 'text-gray-600'
-              }`}
-            >
-              <Hotel size={16} className="inline mr-2" />
-              Hotels
-            </button>
+    <div className="min-h-screen relative">
+      {/* Background Image with Overlay */}
+      <div 
+        className="absolute inset-0 bg-cover bg-center bg-no-repeat"
+        style={{
+          backgroundImage: `url('data:image/svg+xml,${encodeURIComponent(`
+            <svg width="1200" height="600" xmlns="http://www.w3.org/2000/svg">
+              <defs>
+                <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" style="stop-color:#a8e6cf;stop-opacity:1" />
+                  <stop offset="50%" style="stop-color:#7fcdcd;stop-opacity:1" />
+                  <stop offset="100%" style="stop-color:#4a90b5;stop-opacity:1" />
+                </linearGradient>
+              </defs>
+              <rect width="100%" height="100%" fill="url(#grad1)"/>
+              <!-- Pool/Resort Elements -->
+              <rect x="800" y="300" width="300" height="200" fill="#4a9eff" opacity="0.6" rx="20"/>
+              <rect x="50" y="400" width="200" height="150" fill="#6b5b95" opacity="0.3" rx="10"/>
+              <rect x="300" y="450" width="180" height="120" fill="#88d8b0" opacity="0.4" rx="15"/>
+              <circle cx="950" cy="150" r="80" fill="#ffb347" opacity="0.3"/>
+              <path d="M100,500 Q200,450 300,500 T500,500" stroke="#ffffff" stroke-width="3" fill="none" opacity="0.4"/>
+            </svg>
+          `)}`
+        }}
+      >
+        <div className="absolute inset-0 bg-gradient-to-br from-teal-600/20 via-blue-700/30 to-slate-800/40"></div>
+      </div>
+      
+      {/* Content */}
+      <div className="relative z-10 px-6 pt-20 pb-32">
+        <div className="max-w-6xl mx-auto">
+          {/* Hero Title */}
+          <div className="mb-12">
+            <h1 className="text-5xl md:text-6xl font-bold text-white leading-tight">
+              {searchType === 'hotels' ? 'Find your place to stay' : 'Find your perfect flight'}
+            </h1>
+          </div>
+          
+          {/* Search Card */}
+          <div className="bg-slate-900/90 backdrop-blur-sm rounded-2xl p-8 shadow-2xl border border-white/10">
+            {/* Tab Selector */}
+            <div className="flex bg-slate-800 rounded-xl p-2 mb-8 max-w-md">
+              <button
+                onClick={() => setSearchType('flights')}
+                className={`flex-1 px-6 py-3 rounded-lg transition-all duration-300 flex items-center justify-center space-x-2 ${
+                  searchType === 'flights' 
+                    ? 'bg-blue-600 text-white shadow-lg' 
+                    : 'text-gray-300 hover:text-white hover:bg-slate-700'
+                }`}
+              >
+                <Plane size={18} />
+                <span className="font-medium">Flights</span>
+              </button>
+              <button
+                onClick={() => setSearchType('hotels')}
+                className={`flex-1 px-6 py-3 rounded-lg transition-all duration-300 flex items-center justify-center space-x-2 ${
+                  searchType === 'hotels' 
+                    ? 'bg-blue-600 text-white shadow-lg' 
+                    : 'text-gray-300 hover:text-white hover:bg-slate-700'
+                }`}
+              >
+                <Hotel size={18} />
+                <span className="font-medium">Hotels</span>
+              </button>
+            </div>
+            
+            {searchType === 'hotels' ? (
+              // Hotel Search Layout
+              <div className="space-y-6">
+                {/* Main Search Row */}
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                  {/* Destination */}
+                  <div className="md:col-span-1">
+                    <label className="block text-sm font-medium text-white mb-2">
+                      Where do you want to stay?
+                    </label>
+                    <div className="relative">
+                      <MapPin size={18} className="absolute left-4 top-4 text-gray-400" />
+                      <input
+                        type="text"
+                        placeholder="Enter destination or hotel name"
+                        value={searchForm.destination}
+                        onChange={(e) => handleInputChange('destination', e.target.value)}
+                        className="w-full pl-12 pr-4 py-3 bg-white/95 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 placeholder-gray-500 font-medium"
+                      />
+                    </div>
+                  </div>
+                  
+                  {/* Check-in */}
+                  <div>
+                    <label className="block text-sm font-medium text-white mb-2">Check-in</label>
+                    <div className="relative">
+                      <Calendar size={18} className="absolute left-4 top-4 text-gray-400 z-10" />
+                      <input
+                        type="date"
+                        value={searchForm.departDate}
+                        onChange={(e) => handleInputChange('departDate', e.target.value)}
+                        className="w-full pl-12 pr-4 py-3 bg-white/95 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 font-medium"
+                      />
+                    </div>
+                  </div>
+                  
+                  {/* Check-out */}
+                  <div>
+                    <label className="block text-sm font-medium text-white mb-2">Check-out</label>
+                    <div className="relative">
+                      <Calendar size={18} className="absolute left-4 top-4 text-gray-400 z-10" />
+                      <input
+                        type="date"
+                        value={searchForm.returnDate}
+                        onChange={(e) => handleInputChange('returnDate', e.target.value)}
+                        className="w-full pl-12 pr-4 py-3 bg-white/95 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 font-medium"
+                      />
+                    </div>
+                  </div>
+                  
+                  {/* Guests and Rooms */}
+                  <div>
+                    <label className="block text-sm font-medium text-white mb-2">Guests and rooms</label>
+                    <div className="relative">
+                      <Users size={18} className="absolute left-4 top-4 text-gray-400" />
+                      <select
+                        value={`${searchForm.passengers} adults, ${searchForm.rooms} room`}
+                        onChange={(e) => {
+                          // Parse the selected value - simplified for demo
+                          const adults = parseInt(e.target.value.split(' ')[0]);
+                          const rooms = parseInt(e.target.value.split(', ')[1].split(' ')[0]);
+                          handleInputChange('passengers', adults);
+                          handleInputChange('rooms', rooms);
+                        }}
+                        className="w-full pl-12 pr-4 py-3 bg-white/95 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 font-medium appearance-none"
+                      >
+                        <option>1 adults, 1 room</option>
+                        <option>2 adults, 1 room</option>
+                        <option>3 adults, 1 room</option>
+                        <option>4 adults, 1 room</option>
+                        <option>2 adults, 2 room</option>
+                        <option>4 adults, 2 room</option>
+                      </select>
+                      <div className="absolute right-4 top-4 pointer-events-none">
+                        <ChevronRight size={18} className="text-gray-400 rotate-90" />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Popular Filters */}
+                <div className="flex items-center space-x-6">
+                  <span className="text-white font-medium">Popular filters:</span>
+                  <label className="flex items-center space-x-2 text-white hover:text-blue-300 cursor-pointer">
+                    <input type="checkbox" className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+                    <span>Free cancellation</span>
+                  </label>
+                  <label className="flex items-center space-x-2 text-white hover:text-blue-300 cursor-pointer">
+                    <input type="checkbox" className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+                    <span>4 stars</span>
+                  </label>
+                  <label className="flex items-center space-x-2 text-white hover:text-blue-300 cursor-pointer">
+                    <input type="checkbox" className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+                    <span>3 stars</span>
+                  </label>
+                </div>
+                
+                {/* Search Button */}
+                <div className="flex justify-end">
+                  <button
+                    onClick={handleSearch}
+                    disabled={isLoading}
+                    className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 px-8 rounded-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-3 shadow-lg hover:shadow-xl transform hover:scale-105"
+                  >
+                    {isLoading ? (
+                      <>
+                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                        <span>Searching...</span>
+                      </>
+                    ) : (
+                      <>
+                        <span>Search hotels</span>
+                        <ChevronRight size={20} />
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              // Flight Search Layout (simplified)
+              <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-white mb-2">From</label>
+                  <div className="relative">
+                    <MapPin size={18} className="absolute left-4 top-4 text-gray-400" />
+                    <input
+                      type="text"
+                      placeholder="Origin city or airport"
+                      value={searchForm.origin}
+                      onChange={(e) => handleInputChange('origin', e.target.value)}
+                      className="w-full pl-12 pr-4 py-3 bg-white/95 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 placeholder-gray-500 font-medium"
+                    />
+                  </div>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-white mb-2">To</label>
+                  <div className="relative">
+                    <MapPin size={18} className="absolute left-4 top-4 text-gray-400" />
+                    <input
+                      type="text"
+                      placeholder="Destination city or airport"
+                      value={searchForm.destination}
+                      onChange={(e) => handleInputChange('destination', e.target.value)}
+                      className="w-full pl-12 pr-4 py-3 bg-white/95 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 placeholder-gray-500 font-medium"
+                    />
+                  </div>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-white mb-2">Departure</label>
+                  <div className="relative">
+                    <Calendar size={18} className="absolute left-4 top-4 text-gray-400 z-10" />
+                    <input
+                      type="date"
+                      value={searchForm.departDate}
+                      onChange={(e) => handleInputChange('departDate', e.target.value)}
+                      className="w-full pl-12 pr-4 py-3 bg-white/95 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 font-medium"
+                    />
+                  </div>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-white mb-2">Return</label>
+                  <div className="relative">
+                    <Calendar size={18} className="absolute left-4 top-4 text-gray-400 z-10" />
+                    <input
+                      type="date"
+                      value={searchForm.returnDate}
+                      onChange={(e) => handleInputChange('returnDate', e.target.value)}
+                      className="w-full pl-12 pr-4 py-3 bg-white/95 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 font-medium"
+                    />
+                  </div>
+                </div>
+                
+                <div className="flex items-end">
+                  <button
+                    onClick={handleSearch}
+                    disabled={isLoading}
+                    className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2 shadow-lg hover:shadow-xl"
+                  >
+                    {isLoading ? (
+                      <>
+                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                        <span>Searching...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Search size={20} />
+                        <span>Search</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              {searchType === 'flights' ? 'From' : 'From (optional)'}
-            </label>
-            <div className="relative">
-              <MapPin size={18} className="absolute left-3 top-3 text-gray-400" />
-              <input
-                type="text"
-                placeholder={searchType === 'flights' ? 'Origin city or airport' : 'Origin (optional)'}
-                value={searchForm.origin}
-                onChange={(e) => handleInputChange('origin', e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                disabled={searchType === 'hotels'}
-              />
-            </div>
-          </div>
-          
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              {searchType === 'flights' ? 'To' : 'Destination City'}
-            </label>
-            <div className="relative">
-              <MapPin size={18} className="absolute left-3 top-3 text-gray-400" />
-              <input
-                type="text"
-                placeholder={searchType === 'flights' ? 'Destination city or airport' : 'City name (e.g., NYC, Paris, London, or "Paris, France")'}
-                value={searchForm.destination}
-                onChange={(e) => handleInputChange('destination', e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-            </div>
-          </div>
-          
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              {searchType === 'flights' ? 'Departure' : 'Check-in'}
-            </label>
-            <div className="relative">
-              <Calendar size={18} className="absolute left-3 top-3 text-gray-400" />
-              <input
-                type="date"
-                value={searchForm.departDate}
-                onChange={(e) => handleInputChange('departDate', e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-            </div>
-          </div>
-          
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              {searchType === 'flights' ? 'Return' : 'Check-out'}
-            </label>
-            <div className="relative">
-              <Calendar size={18} className="absolute left-3 top-3 text-gray-400" />
-              <input
-                type="date"
-                value={searchForm.returnDate}
-                onChange={(e) => handleInputChange('returnDate', e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-            </div>
-          </div>
-          
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              {searchType === 'flights' ? 'Passengers' : 'Guests'}
-            </label>
-            <div className="relative">
-              <Users size={18} className="absolute left-3 top-3 text-gray-400" />
-              <input
-                type="number"
-                min="1"
-                max="9"
-                value={searchForm.passengers}
-                onChange={(e) => handleInputChange('passengers', parseInt(e.target.value) || 1)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-            </div>
-          </div>
-          
-          {searchType === 'hotels' && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Rooms</label>
-              <input
-                type="number"
-                min="1"
-                max="5"
-                value={searchForm.rooms}
-                onChange={(e) => handleInputChange('rooms', parseInt(e.target.value) || 1)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-            </div>
-          )}
-        </div>
-        
-        <button
-          onClick={handleSearch}
-          disabled={isLoading}
-          className="w-full bg-blue-600 text-white py-3 px-6 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
-        >
-          {isLoading ? (
-            <>
-              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-              Searching...
-            </>
-          ) : (
-            <>
-              <Search size={20} className="mr-2" />
-              Search {searchType}
-            </>
-          )}
-        </button>
       </div>
     </div>
   ), [searchForm, searchType, isLoading, handleInputChange, handleSearch]);
@@ -684,230 +809,193 @@ const TravelApp = () => {
                 <div className="flex items-center justify-between">
                   <div className="flex-1">
                     {searchType === 'flights' ? (
-                      <div className="space-y-4">
-                        {/* Flight Header */}
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center space-x-3">
-                            <div className="text-lg font-semibold">
-                              {item.outboundJourney?.segments?.[0]?.departure?.airport || searchForm.origin} → {item.outboundJourney?.segments?.[item.outboundJourney?.segments?.length - 1]?.arrival?.airport || searchForm.destination}
+                      <div className="space-y-6">
+                        {/* Main Flight Display - Prominent Layout */}
+                        <div className="bg-slate-800 text-white p-6 rounded-xl">
+                          {/* Header - Route and Duration */}
+                          <div className="flex items-center justify-between mb-6">
+                            <div className="flex items-center space-x-4">
+                              <div className="text-3xl font-bold tracking-wide">
+                                {item.outboundJourney?.segments?.[0]?.departure?.airport || searchForm.origin}
+                              </div>
+                              <Plane size={24} className="text-green-400" />
+                              <div className="text-3xl font-bold tracking-wide">
+                                {item.outboundJourney?.segments?.[item.outboundJourney?.segments?.length - 1]?.arrival?.airport || searchForm.destination}
+                              </div>
                             </div>
-                            <div className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-sm font-medium">
-                              {item.outboundJourney?.duration || '2h 30m'}
+                            <div className="text-right">
+                              <div className="text-lg text-gray-300">
+                                {item.outboundJourney?.duration || '2h 30m'}
+                              </div>
+                              <div className={`text-sm px-3 py-1 rounded-full mt-1 ${
+                                (item.outboundJourney?.segments?.length || 1) === 1 ? 
+                                'bg-green-600 text-green-100' : 'bg-orange-600 text-orange-100'
+                              }`}>
+                                {(item.outboundJourney?.segments?.length || 1) === 1 ? 
+                                  'Direct' : `${(item.outboundJourney?.segments?.length || 1) - 1} stop${(item.outboundJourney?.segments?.length || 1) > 2 ? 's' : ''}`
+                                }
+                              </div>
                             </div>
-                            <div className={`px-2 py-1 rounded text-sm font-medium ${
-                              (item.outboundJourney?.segments?.length || 1) === 1 ? 
-                              'bg-green-100 text-green-800' : 'bg-orange-100 text-orange-800'
-                            }`}>
-                              {(item.outboundJourney?.segments?.length || 1) === 1 ? 
-                                'Direct' : `${(item.outboundJourney?.segments?.length || 1) - 1} stop${(item.outboundJourney?.segments?.length || 1) > 2 ? 's' : ''}`
-                              }
+                          </div>
+                          
+                          {/* Flight Details - Large Format */}
+                          <div className="grid grid-cols-2 gap-8">
+                            {/* Departure */}
+                            <div>
+                              <div className="text-sm text-gray-400 mb-1">
+                                {searchForm.origin === 'LAX' ? 'Los Angeles' : 
+                                 searchForm.origin === 'JFK' ? 'New York' : 
+                                 searchForm.origin === 'LHR' ? 'London' : 
+                                 searchForm.origin || 'Departure City'} • {new Date(searchForm.departDate || Date.now()).toLocaleDateString('en-US', { weekday: 'short', day: 'numeric', month: 'short' })}
+                              </div>
+                              <div className="text-sm text-gray-300 mb-2">Scheduled departure</div>
+                              <div className="text-5xl font-bold mb-2">
+                                {item.outboundJourney?.segments?.[0]?.departure?.time ? 
+                                  new Date(item.outboundJourney.segments[0].departure.time).toLocaleTimeString([], {
+                                    hour: '2-digit', 
+                                    minute: '2-digit',
+                                    hour12: false
+                                  }) : '6:03 pm'
+                                }
+                              </div>
+                              <div className="flex items-center space-x-4 text-sm text-gray-300">
+                                <span>Terminal</span>
+                                <span className="text-white font-bold text-lg">
+                                  {item.outboundJourney?.segments?.[0]?.departure?.terminal || 'E'}
+                                </span>
+                                <span>Gate</span>
+                                <span className="text-white font-bold text-lg">
+                                  {item.outboundJourney?.segments?.[0]?.departure?.gate || 'E10'}
+                                </span>
+                              </div>
+                            </div>
+                            
+                            {/* Arrival */}
+                            <div>
+                              <div className="text-sm text-gray-400 mb-1">
+                                {searchForm.destination === 'LAX' ? 'Los Angeles' : 
+                                 searchForm.destination === 'JFK' ? 'New York' : 
+                                 searchForm.destination === 'LHR' ? 'London' : 
+                                 searchForm.destination || 'Arrival City'} • {new Date(searchForm.departDate || Date.now()).toLocaleDateString('en-US', { weekday: 'short', day: 'numeric', month: 'short' })}
+                              </div>
+                              <div className="text-sm text-gray-300 mb-2">Scheduled arrival</div>
+                              <div className="text-5xl font-bold mb-2">
+                                {item.outboundJourney?.segments?.[item.outboundJourney?.segments?.length - 1]?.arrival?.time ? 
+                                  new Date(item.outboundJourney.segments[item.outboundJourney.segments.length - 1].arrival.time).toLocaleTimeString([], {
+                                    hour: '2-digit', 
+                                    minute: '2-digit',
+                                    hour12: false
+                                  }) : '7:12 pm'
+                                }
+                              </div>
+                              <div className="flex items-center space-x-4 text-sm text-gray-300">
+                                <span>Terminal</span>
+                                <span className="text-white font-bold text-lg">
+                                  {item.outboundJourney?.segments?.[item.outboundJourney?.segments?.length - 1]?.arrival?.terminal || '-'}
+                                </span>
+                                <span>Gate</span>
+                                <span className="text-white font-bold text-lg">
+                                  {item.outboundJourney?.segments?.[item.outboundJourney?.segments?.length - 1]?.arrival?.gate || '210'}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                          
+                          {/* Flight Info Footer */}
+                          <div className="flex items-center justify-between mt-6 pt-4 border-t border-gray-600">
+                            <div className="flex items-center space-x-6">
+                              <div>
+                                <span className="text-sm text-gray-400">Flight</span>
+                                <span className="ml-2 text-white font-bold">
+                                  {item.outboundJourney?.segments?.[0]?.airline || 'AA'} {item.outboundJourney?.segments?.[0]?.flightNumber || '1234'}
+                                </span>
+                              </div>
+                              <div>
+                                <span className="text-sm text-gray-400">Aircraft</span>
+                                <span className="ml-2 text-white">
+                                  {item.outboundJourney?.segments?.[0]?.aircraft || 'Boeing 737'}
+                                </span>
+                              </div>
+                            </div>
+                            <div className="text-sm text-gray-400">
+                              Updated {Math.floor(Math.random() * 3) + 1}h {Math.floor(Math.random() * 60)}m ago
                             </div>
                           </div>
                         </div>
                         
-                        {/* Flight Timeline */}
-                        <div className="bg-gray-50 p-4 rounded-lg">
-                          {item.outboundJourney?.segments?.map((segment, segmentIndex) => (
-                            <div key={segmentIndex}>
-                              <div className="flex items-center justify-between py-2">
-                                <div className="flex items-center space-x-4">
-                                  <div className="flex items-center space-x-2">
-                                    <Plane size={16} className="text-blue-600" />
-                                    <span className="font-medium text-sm">
-                                      {segment.airline || 'XX'} {segment.flightNumber || '000'}
-                                    </span>
-                                    <span className="text-xs text-gray-500 bg-white px-2 py-1 rounded">
-                                      {segment.aircraft || 'Aircraft TBD'}
-                                    </span>
-                                  </div>
-                                </div>
-                                <div className="text-sm text-gray-600">
-                                  {segment.duration || 'Duration TBD'}
-                                </div>
-                              </div>
-                              
-                              <div className="flex items-center justify-between text-sm mb-2">
-                                <div className="flex items-center space-x-6">
-                                  <div className="text-center">
-                                    <div className="font-mono font-bold text-lg">
-                                      {segment.departure?.time ? 
-                                        new Date(segment.departure.time).toLocaleTimeString([], {
-                                          hour: '2-digit', 
-                                          minute: '2-digit',
-                                          hour12: false
-                                        }) : '--:--'
-                                      }
-                                    </div>
-                                    <div className="text-xs text-gray-600">
-                                      {segment.departure?.airport || 'XXX'}
-                                      {segment.departure?.terminal && ` T${segment.departure.terminal}`}
-                                    </div>
-                                  </div>
-                                  
-                                  <div className="flex-1 flex items-center justify-center">
-                                    <div className="flex items-center space-x-2">
-                                      <div className="h-px bg-gray-300 flex-1 w-16"></div>
-                                      <Plane size={12} className="text-gray-400" />
-                                      <div className="h-px bg-gray-300 flex-1 w-16"></div>
-                                    </div>
-                                  </div>
-                                  
-                                  <div className="text-center">
-                                    <div className="font-mono font-bold text-lg">
-                                      {segment.arrival?.time ? 
-                                        new Date(segment.arrival.time).toLocaleTimeString([], {
-                                          hour: '2-digit', 
-                                          minute: '2-digit',
-                                          hour12: false
-                                        }) : '--:--'
-                                      }
-                                    </div>
-                                    <div className="text-xs text-gray-600">
-                                      {segment.arrival?.airport || 'XXX'}
-                                      {segment.arrival?.terminal && ` T${segment.arrival.terminal}`}
-                                    </div>
-                                  </div>
-                                </div>
-                              </div>
-                              
-                              {/* Layover */}
-                              {segmentIndex < (item.outboundJourney?.segments?.length - 1) && (
-                                <div className="my-3 p-3 bg-orange-50 border-l-4 border-orange-200 rounded">
-                                  <div className="flex items-center space-x-2">
-                                    <Clock size={14} className="text-orange-600" />
-                                    <span className="text-sm font-medium text-orange-800">
-                                      Layover in {segment.arrival?.airport} • Connection time varies
-                                    </span>
-                                  </div>
-                                </div>
-                              )}
+                        {/* Layover Information (if applicable) */}
+                        {item.outboundJourney?.segments && item.outboundJourney.segments.length > 1 && (
+                          <div className="bg-orange-50 border-l-4 border-orange-400 p-4 rounded-r-lg">
+                            <div className="flex items-center space-x-2 text-orange-800 font-medium mb-2">
+                              <Clock size={16} />
+                              <span>Connection Required</span>
                             </div>
-                          )) || (
-                            <div className="flex items-center justify-between py-2">
-                              <div className="flex items-center space-x-4">
-                                <Plane size={16} className="text-blue-600" />
-                                <span className="font-medium">Flight Details Loading...</span>
+                            {item.outboundJourney.segments.slice(0, -1).map((segment, index) => (
+                              <div key={index} className="text-sm text-orange-700">
+                                Layover in {segment.arrival?.airport} • Terminal {segment.arrival?.terminal || 'TBD'}
                               </div>
-                            </div>
-                          )}
-                        </div>
+                            ))}
+                          </div>
+                        )}
                         
-                        {/* Essential Information - Always Visible */}
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                          {/* Baggage */}
-                          <div className="bg-white border border-gray-200 p-3 rounded-lg">
-                            <div className="flex items-center space-x-2 mb-1">
-                              <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                              <span className="text-xs font-medium text-gray-700">BAGGAGE</span>
-                            </div>
-                            <div className="text-sm font-medium">Carry-on included</div>
-                            <div className="text-xs text-gray-500">Checked bag fees apply</div>
+                        {/* Service Information - Compact Cards */}
+                        <div className="grid grid-cols-4 gap-3">
+                          <div className="text-center p-3 bg-green-50 rounded-lg border border-green-200">
+                            <div className="text-xs font-medium text-green-800 mb-1">BAGGAGE</div>
+                            <div className="text-sm font-bold text-green-900">Carry-on ✓</div>
+                            <div className="text-xs text-green-600">Checked extra</div>
                           </div>
                           
-                          {/* Seat Selection */}
-                          <div className="bg-white border border-gray-200 p-3 rounded-lg">
-                            <div className="flex items-center space-x-2 mb-1">
-                              <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                              <span className="text-xs font-medium text-gray-700">SEATS</span>
-                            </div>
-                            <div className="text-sm font-medium">Standard selection</div>
-                            <div className="text-xs text-gray-500">Premium seats extra</div>
+                          <div className="text-center p-3 bg-blue-50 rounded-lg border border-blue-200">
+                            <div className="text-xs font-medium text-blue-800 mb-1">SEATS</div>
+                            <div className="text-sm font-bold text-blue-900">Standard ✓</div>
+                            <div className="text-xs text-blue-600">Premium extra</div>
                           </div>
                           
-                          {/* Meals */}
-                          <div className="bg-white border border-gray-200 p-3 rounded-lg">
-                            <div className="flex items-center space-x-2 mb-1">
-                              <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
-                              <span className="text-xs font-medium text-gray-700">MEALS</span>
-                            </div>
-                            <div className="text-sm font-medium">
+                          <div className="text-center p-3 bg-purple-50 rounded-lg border border-purple-200">
+                            <div className="text-xs font-medium text-purple-800 mb-1">MEALS</div>
+                            <div className="text-sm font-bold text-purple-900">
                               {item.outboundJourney?.duration && 
                                parseInt(item.outboundJourney.duration.match(/(\d+)H/)?.[1] || 0) >= 3 ? 
-                                'Meal service' : 'Snacks & drinks'
+                                'Included ✓' : 'Snacks ✓'
                               }
                             </div>
-                            <div className="text-xs text-gray-500">Complimentary</div>
+                            <div className="text-xs text-purple-600">Complimentary</div>
                           </div>
                           
-                          {/* Flexibility */}
-                          <div className="bg-white border border-gray-200 p-3 rounded-lg">
-                            <div className="flex items-center space-x-2 mb-1">
-                              <div className="w-2 h-2 bg-red-500 rounded-full"></div>
-                              <span className="text-xs font-medium text-gray-700">CHANGES</span>
-                            </div>
-                            <div className="text-sm font-medium">Fees apply</div>
-                            <div className="text-xs text-gray-500">See fare conditions</div>
+                          <div className="text-center p-3 bg-gray-50 rounded-lg border border-gray-200">
+                            <div className="text-xs font-medium text-gray-800 mb-1">CLASS</div>
+                            <div className="text-sm font-bold text-gray-900">{item.travelClass || 'Economy'}</div>
+                            <div className="text-xs text-gray-600">{item.pricing?.fareType || 'Standard'}</div>
                           </div>
                         </div>
                         
-                        {/* Fare Details - Always Visible */}
-                        <div className="flex items-center justify-between text-sm bg-gray-50 p-3 rounded-lg">
-                          <div className="flex items-center space-x-4">
-                            <div className="flex items-center space-x-2">
-                              <span className="text-gray-600">Class:</span>
-                              <span className="bg-white px-2 py-1 rounded text-xs font-medium">
-                                {item.travelClass || 'Economy'}
-                              </span>
-                            </div>
-                            <div className="flex items-center space-x-2">
-                              <span className="text-gray-600">Fare:</span>
-                              <span className="bg-white px-2 py-1 rounded text-xs font-medium">
-                                {item.pricing?.fareType || 'Standard'}
-                              </span>
-                            </div>
-                          </div>
-                          <div className="text-xs text-gray-500">
-                            Operated by {item.outboundJourney?.segments?.[0]?.airline || 'Airline'}
-                          </div>
-                        </div>
-                        
-                        {/* Return Flight - Always Visible if Available */}
+                        {/* Return Flight (if applicable) */}
                         {item.inboundJourney && (
-                          <div className="border-t pt-4">
-                            <div className="text-sm font-medium text-gray-700 mb-2 flex items-center space-x-2">
-                              <span>Return Flight</span>
-                              <div className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs">
-                                {item.inboundJourney.duration || 'Duration TBD'}
-                              </div>
-                            </div>
-                            <div className="bg-gray-50 p-3 rounded-lg">
-                              <div className="flex items-center justify-between text-sm">
-                                <div className="flex items-center space-x-4">
-                                  <Plane size={14} className="text-blue-600" />
-                                  <span className="font-medium">
-                                    {item.inboundJourney.segments?.[0]?.airline} {item.inboundJourney.segments?.[0]?.flightNumber}
-                                  </span>
+                          <div className="bg-slate-700 text-white p-4 rounded-xl">
+                            <div className="text-sm text-gray-300 mb-3">Return Flight</div>
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center space-x-4">
+                                <div className="text-2xl font-bold">
+                                  {item.inboundJourney.segments?.[0]?.departure?.airport}
                                 </div>
-                                <div className="flex items-center space-x-6">
-                                  <div className="text-center">
-                                    <div className="font-mono font-medium">
-                                      {item.inboundJourney.segments?.[0]?.departure?.time ? 
-                                        new Date(item.inboundJourney.segments[0].departure.time).toLocaleTimeString([], {
-                                          hour: '2-digit', 
-                                          minute: '2-digit',
-                                          hour12: false
-                                        }) : '--:--'
-                                      }
-                                    </div>
-                                    <div className="text-xs text-gray-600">
-                                      {item.inboundJourney.segments?.[0]?.departure?.airport}
-                                    </div>
-                                  </div>
-                                  <span className="text-gray-400">→</span>
-                                  <div className="text-center">
-                                    <div className="font-mono font-medium">
-                                      {item.inboundJourney.segments?.[item.inboundJourney.segments.length - 1]?.arrival?.time ? 
-                                        new Date(item.inboundJourney.segments[item.inboundJourney.segments.length - 1].arrival.time).toLocaleTimeString([], {
-                                          hour: '2-digit', 
-                                          minute: '2-digit',
-                                          hour12: false
-                                        }) : '--:--'
-                                      }
-                                    </div>
-                                    <div className="text-xs text-gray-600">
-                                      {item.inboundJourney.segments?.[item.inboundJourney.segments.length - 1]?.arrival?.airport}
-                                    </div>
-                                  </div>
+                                <Plane size={16} className="text-green-400" />
+                                <div className="text-2xl font-bold">
+                                  {item.inboundJourney.segments?.[item.inboundJourney.segments.length - 1]?.arrival?.airport}
+                                </div>
+                              </div>
+                              <div className="text-right">
+                                <div className="text-2xl font-bold">
+                                  {item.inboundJourney.segments?.[0]?.departure?.time ? 
+                                    new Date(item.inboundJourney.segments[0].departure.time).toLocaleTimeString([], {
+                                      hour: '2-digit', 
+                                      minute: '2-digit',
+                                      hour12: false
+                                    }) : '3:45 pm'
+                                  }
+                                </div>
+                                <div className="text-sm text-gray-300">
+                                  {item.inboundJourney.segments?.[0]?.airline} {item.inboundJourney.segments?.[0]?.flightNumber}
                                 </div>
                               </div>
                             </div>
