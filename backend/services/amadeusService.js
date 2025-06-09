@@ -502,6 +502,95 @@ const searchHotels = async (searchParams) => {
 };
 
 /**
+ * Hotel List by City Code
+ * Get list of hotels by city code (like PAR for Paris)
+ */
+const getHotelsByCity = async (cityCode, options = {}) => {
+    checkAmadeusConfig();
+    
+    try {
+        const response = await amadeus.referenceData.locations.hotels.byCity.get({
+            cityCode: cityCode.toUpperCase(),
+            ...options
+        });
+        
+        return {
+            success: true,
+            data: response.data.map(hotel => ({
+                type: hotel.type,
+                hotelId: hotel.hotelId,
+                chainCode: hotel.chainCode,
+                dupeId: hotel.dupeId,
+                name: hotel.name,
+                cityCode: hotel.cityCode,
+                geoCode: {
+                    latitude: hotel.geoCode?.latitude,
+                    longitude: hotel.geoCode?.longitude
+                },
+                address: {
+                    lines: hotel.address?.lines,
+                    postalCode: hotel.address?.postalCode,
+                    cityName: hotel.address?.cityName,
+                    countryCode: hotel.address?.countryCode
+                },
+                distance: hotel.distance,
+                lastUpdate: hotel.lastUpdate
+            })),
+            meta: response.meta
+        };
+    } catch (error) {
+        console.error('Error getting hotels by city:', error);
+        return {
+            success: false,
+            error: error.message,
+            details: error.response?.data || null
+        };
+    }
+};
+
+/**
+ * Hotel Offers Search
+ * Get available hotel offers for specific hotels
+ */
+const searchHotelOffers = async (searchParams) => {
+    checkAmadeusConfig();
+    
+    try {
+        const {
+            hotelIds, // Array of hotel IDs or single hotel ID
+            adults = 1,
+            checkInDate,
+            checkOutDate,
+            roomQuantity = 1,
+            currency = 'USD'
+        } = searchParams;
+
+        const response = await amadeus.shopping.hotelOffersSearch.get({
+            hotelIds: Array.isArray(hotelIds) ? hotelIds.join(',') : hotelIds,
+            adults,
+            checkInDate,
+            checkOutDate,
+            roomQuantity,
+            currency
+        });
+        
+        return {
+            success: true,
+            data: response.data,
+            meta: response.meta
+        };
+    } catch (error) {
+        console.error('Error searching hotel offers:', error);
+        return {
+            success: false,
+            error: error.message,
+            details: error.response?.data || null
+        };
+    }
+};
+
+
+/**
  * Hotel Ratings
  * Enrich hotel search results with traveler ratings
  * https://developers.amadeus.com/self-service/category/hotels/api-doc/hotel-ratings
@@ -612,6 +701,8 @@ module.exports = {
     searchHotels,
     getHotelRatings,
     createHotelBooking,
+    getHotelsByCity,
+    searchHotelOffers,
     
     // Utility
     healthCheck

@@ -8,263 +8,143 @@ const cacheService = require('../services/cacheService');
  */
 const searchHotels = async (req, res) => {
     try {
-        const searchParams = req.method === 'GET' ? req.query : req.body;
-        
-        const {
-            city,
-            country,
-            latitude,
-            longitude,
-            checkIn,
-            checkOut,
-            adults = 1,
+        const { 
+            city, 
+            country, 
+            checkIn, 
+            checkOut, 
+            adults = 1, 
             rooms = 1,
             currency = 'USD',
-            chainCodes,
-            amenities,
-            ratings,
-            priceRange,
-            radius = 5,
-            maxResults = 50
-        } = searchParams;
+            max = 20
+        } = req.query;
 
         // Validation
+        if (!city) {
+            return res.status(400).json({
+                success: false,
+                error: 'Missing required parameter: city'
+            });
+        }
+
         if (!checkIn || !checkOut) {
             return res.status(400).json({
                 success: false,
-                error: 'Missing required parameters',
-                required: ['checkIn', 'checkOut'],
-                example: {
-                    checkIn: '2025-07-01',
-                    checkOut: '2025-07-05',
-                    city: 'Paris',
-                    country: 'France'
-                }
-            });
-        }
-
-        if (!city && !latitude && !longitude) {
-            return res.status(400).json({
-                success: false,
-                error: 'Must provide either city or coordinates (latitude/longitude)'
-            });
-        }
-
-        // Validate date format
-        const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
-        if (!dateRegex.test(checkIn) || !dateRegex.test(checkOut)) {
-            return res.status(400).json({
-                success: false,
-                error: 'Invalid date format. Use YYYY-MM-DD'
-            });
-        }
-
-        // Validate dates
-        const checkInDate = new Date(checkIn);
-        const checkOutDate = new Date(checkOut);
-        const today = new Date();
-        
-        if (checkInDate <= today) {
-            return res.status(400).json({
-                success: false,
-                error: 'Check-in date must be in the future'
-            });
-        }
-
-        if (checkOutDate <= checkInDate) {
-            return res.status(400).json({
-                success: false,
-                error: 'Check-out date must be after check-in date'
+                error: 'Missing required dates',
+                required: ['checkIn', 'checkOut']
             });
         }
 
         try {
-            const cacheKey = city 
-                ? `hotels:${city}:${country || 'all'}:${checkIn}:${checkOut}:${adults}:${rooms}`
-                : `hotels:${latitude},${longitude}:${checkIn}:${checkOut}:${adults}:${rooms}`;
+            // Step 1: Convert city name to proper Amadeus city code
+            const cityCode = getCityCode(city);
+            
+            if (!cityCode) {
+                return res.status(400).json({
+                    success: false,
+                    error: `Unsupported city: ${city}`,
+                    message: 'Please use major city names like Paris, London, New York, etc.',
+                    supportedCities: ['Paris', 'London', 'New York', 'Tokyo', 'Singapore', 'Bangkok']
+                });
+            }
 
-            const result = await cacheService.getHotels(
-                city || `${latitude},${longitude}`,
-                country,
-                async () => {
-                    let hotelListParams;
-                    
-                    if (city) {
-                        const citySearch = await amadeusService.searchAirportsAndCities(city, {
-                            max: 5,
-                            include: ['CITIES']
-                        });
+            // Step 2: Get hotels in the city
+            const hotelListResult = await amadeusService.getHotelsByCity(cityCode);
+            
+            if (!hotelListResult.success) {
+                return res.status(502).json({
+                    success: false,
+                    error: 'Hotel search service unavailable',
+                    message: hotelListResult.error
+                });
+            }
 
-                        if (!citySearch.success || citySearch.data.length === 0) {
-                            throw new Error(`City not found: ${city}`);
-                        }
-
-                        let cityCode;
-                        if (country) {
-                            const cityMatch = citySearch.data.find(location => 
-                                location.address?.countryName?.toLowerCase().includes(country.toLowerCase()) ||
-                                location.address?.countryCode?.toLowerCase() === country.toLowerCase()
-                            );
-                            cityCode = cityMatch ? cityMatch.address?.cityCode : citySearch.data[0].id;
-                        } else {
-                            cityCode = citySearch.data[0].id;
-                        }
-
-                        hotelListParams = {
-                            cityCode,
-                            chainCodes: Array.isArray(chainCodes) ? chainCodes : chainCodes ? [chainCodes] : undefined,
-                            amenities: Array.isArray(amenities) ? amenities : amenities ? [amenities] : undefined,
-                            ratings: Array.isArray(ratings) ? ratings : ratings ? [ratings] : undefined
-                        };
-                    } else {
-                        hotelListParams = {
-                            latitude: parseFloat(latitude),
-                            longitude: parseFloat(longitude),
-                            radius: parseInt(radius),
-                            chainCodes: Array.isArray(chainCodes) ? chainCodes : chainCodes ? [chainCodes] : undefined,
-                            amenities: Array.isArray(amenities) ? amenities : amenities ? [amenities] : undefined,
-                            ratings: Array.isArray(ratings) ? ratings : ratings ? [ratings] : undefined
-                        };
+            if (hotelListResult.data.length === 0) {
+                return res.json({
+                    success: true,
+                    data: {
+                        hotels: [],
+                        searchParams: { city, cityCode, checkIn, checkOut, adults, rooms },
+                        resultCount: 0,
+                        message: 'No hotels found in this city'
                     }
+                });
+            }
 
-                    const hotelListResult = await amadeusService.getHotelList(hotelListParams);
-                    
-                    if (!hotelListResult.success) {
-                        throw new Error(`Hotel list search failed: ${hotelListResult.error}`);
-                    }
+            // Step 3: Get available offers for these hotels
+            const hotelIds = hotelListResult.data
+                .slice(0, Math.min(parseInt(max), 50))
+                .map(hotel => hotel.hotelId);
 
-                    if (hotelListResult.data.length === 0) {
-                        return {
-                            hotels: [],
-                            searchParams: hotelListParams,
-                            message: 'No hotels found in the specified area'
-                        };
-                    }
+            const offersResult = await amadeusService.searchHotelOffers({
+                hotelIds,
+                adults: parseInt(adults),
+                checkInDate: checkIn,
+                checkOutDate: checkOut,
+                roomQuantity: parseInt(rooms),
+                currency: currency.toUpperCase()
+            });
 
-                    const hotelIds = hotelListResult.data
-                        .slice(0, Math.min(parseInt(maxResults), 100))
-                        .map(hotel => hotel.hotelId);
+            if (!offersResult.success) {
+                return res.status(502).json({
+                    success: false,
+                    error: 'Hotel offers search failed',
+                    message: offersResult.error
+                });
+            }
 
-                    const hotelSearchParams = {
-                        hotelIds,
-                        adults: parseInt(adults),
-                        checkInDate: checkIn,
-                        checkOutDate: checkOut,
-                        roomQuantity: parseInt(rooms),
-                        currency: currency.toUpperCase(),
-                        priceRange
-                    };
+            // Step 4: Process and format results
+            const processedHotels = offersResult.data.map(hotelOffer => {
+                const hotel = hotelListResult.data.find(h => h.hotelId === hotelOffer.hotel.hotelId);
+                
+                return {
+                    id: hotelOffer.hotel.hotelId,
+                    type: 'hotel-offer',
+                    hotel: {
+                        name: hotelOffer.hotel.name,
+                        rating: hotelOffer.hotel.rating,
+                        chainCode: hotelOffer.hotel.chainCode,
+                        address: hotel?.address || {},
+                        amenities: hotelOffer.hotel.amenities || [],
+                        geoCode: hotel?.geoCode || {}
+                    },
+                    offers: hotelOffer.offers.map(offer => ({
+                        id: offer.id,
+                        checkInDate: offer.checkInDate,
+                        checkOutDate: offer.checkOutDate,
+                        roomQuantity: offer.roomQuantity,
+                        rateCode: offer.rateCode,
+                        price: {
+                            currency: offer.price.currency,
+                            base: parseFloat(offer.price.base),
+                            total: parseFloat(offer.price.total),
+                            variations: offer.price.variations
+                        },
+                        room: offer.room,
+                        guests: offer.guests,
+                        policies: offer.policies
+                    })),
+                    available: hotelOffer.available
+                };
+            });
 
-                    const hotelOffersResult = await amadeusService.searchHotels(hotelSearchParams);
-                    
-                    if (!hotelOffersResult.success) {
-                        throw new Error(`Hotel offers search failed: ${hotelOffersResult.error}`);
-                    }
-
-                    const hotelsWithOffers = hotelOffersResult.data.filter(hotel => 
-                        hotel.available && hotel.offers && hotel.offers.length > 0
-                    );
-
-                    let ratingsData = {};
-                    if (hotelsWithOffers.length > 0) {
-                        try {
-                            const hotelIdsForRatings = hotelsWithOffers.map(hotel => hotel.hotel.hotelId);
-                            const ratingsResult = await amadeusService.getHotelRatings(hotelIdsForRatings);
-                            
-                            if (ratingsResult.success) {
-                                ratingsData = ratingsResult.data.reduce((acc, rating) => {
-                                    acc[rating.hotelId] = rating;
-                                    return acc;
-                                }, {});
-                            }
-                        } catch (ratingsError) {
-                            console.warn('Could not fetch hotel ratings:', ratingsError.message);
-                        }
-                    }
-
-                    const processedHotels = hotelsWithOffers.map(hotel => {
-                        const hotelInfo = hotel.hotel;
-                        const bestOffer = hotel.offers.reduce((best, current) => 
-                            parseFloat(current.price.total) < parseFloat(best.price.total) ? current : best
-                        );
-                        
-                        const rating = ratingsData[hotelInfo.hotelId];
-
-                        return {
-                            id: hotelInfo.hotelId,
-                            name: hotelInfo.name,
-                            chainCode: hotelInfo.chainCode,
-                            category: bestOffer.category,
-                            location: {
-                                address: hotelInfo.address,
-                                coordinates: {
-                                    latitude: parseFloat(hotelInfo.latitude),
-                                    longitude: parseFloat(hotelInfo.longitude)
-                                },
-                                cityCode: hotelInfo.cityCode,
-                                distance: hotelInfo.hotelDistance
-                            },
-                            contact: hotelInfo.contact,
-                            description: hotelInfo.description,
-                            amenities: hotelInfo.amenities || [],
-                            media: hotelInfo.media || [],
-                            rating: rating ? {
-                                overall: rating.overallRating,
-                                numberOfReviews: rating.numberOfReviews,
-                                sentiments: rating.sentiments
-                            } : null,
-                            bestOffer: {
-                                id: bestOffer.id,
-                                checkIn: bestOffer.checkInDate,
-                                checkOut: bestOffer.checkOutDate,
-                                roomType: bestOffer.room?.type,
-                                roomDescription: bestOffer.room?.typeEstimated?.category,
-                                bedType: bestOffer.room?.typeEstimated?.beds,
-                                boardType: bestOffer.boardType,
-                                pricing: {
-                                    currency: bestOffer.price.currency,
-                                    total: parseFloat(bestOffer.price.total),
-                                    base: parseFloat(bestOffer.price.base),
-                                    taxes: bestOffer.price.taxes || [],
-                                    variations: bestOffer.price.variations || []
-                                },
-                                policies: {
-                                    cancellation: bestOffer.policies?.cancellation,
-                                    paymentType: bestOffer.policies?.paymentType,
-                                    guarantee: bestOffer.policies?.guarantee
-                                },
-                                commission: bestOffer.commission
-                            },
-                            allOffers: hotel.offers.map(offer => ({
-                                id: offer.id,
-                                roomType: offer.room?.type,
-                                boardType: offer.boardType,
-                                price: {
-                                    currency: offer.price.currency,
-                                    total: parseFloat(offer.price.total),
-                                    base: parseFloat(offer.price.base)
-                                }
-                            }))
-                        };
-                    });
-
-                    processedHotels.sort((a, b) => a.bestOffer.pricing.total - b.bestOffer.pricing.total);
-
-                    return {
-                        hotels: processedHotels,
-                        searchParams: { ...hotelListParams, ...hotelSearchParams },
-                        resultCount: processedHotels.length,
-                        totalAvailable: hotelListResult.data.length
-                    };
-                }
-            );
+            // Sort by price (lowest first)
+            processedHotels.sort((a, b) => {
+                const priceA = a.offers[0]?.price?.total || 999999;
+                const priceB = b.offers[0]?.price?.total || 999999;
+                return priceA - priceB;
+            });
 
             return res.json({
                 success: true,
-                data: result,
+                data: {
+                    hotels: processedHotels,
+                    searchParams: { city, cityCode, checkIn, checkOut, adults, rooms },
+                    resultCount: processedHotels.length
+                },
                 meta: {
                     searchTime: new Date().toISOString(),
-                    cached: true
+                    cached: false
                 }
             });
 
@@ -286,6 +166,57 @@ const searchHotels = async (req, res) => {
         });
     }
 };
+
+// Add city code mapping function
+function getCityCode(cityName) {
+    const cityMappings = {
+        'paris': 'PAR',
+        'london': 'LON',
+        'new york': 'NYC',
+        'new york city': 'NYC',
+        'nyc': 'NYC',
+        'madrid': 'MAD',
+        'barcelona': 'BCN',
+        'rome': 'ROM',
+        'milan': 'MIL',
+        'amsterdam': 'AMS',
+        'berlin': 'BER',
+        'munich': 'MUC',
+        'vienna': 'VIE',
+        'zurich': 'ZUR',
+        'brussels': 'BRU',
+        'stockholm': 'STO',
+        'oslo': 'OSL',
+        'copenhagen': 'CPH',
+        'helsinki': 'HEL',
+        'prague': 'PRG',
+        'budapest': 'BUD',
+        'athens': 'ATH',
+        'istanbul': 'IST',
+        'dubai': 'DXB',
+        'singapore': 'SIN',
+        'bangkok': 'BKK',
+        'tokyo': 'TYO',
+        'osaka': 'OSA',
+        'seoul': 'SEL',
+        'hong kong': 'HKG',
+        'mumbai': 'BOM',
+        'delhi': 'DEL',
+        'sydney': 'SYD',
+        'melbourne': 'MEL',
+        'toronto': 'YTO',
+        'vancouver': 'YVR',
+        'los angeles': 'LAX',
+        'san francisco': 'SFO',
+        'chicago': 'CHI',
+        'miami': 'MIA',
+        'boston': 'BOS',
+        'washington': 'WAS',
+        'las vegas': 'LAS'
+    };
+    
+    return cityMappings[cityName.toLowerCase()] || null;
+}
 
 /**
  * Get hotel details by ID
