@@ -684,39 +684,52 @@ const TravelApp = () => {
                 <div className="flex items-center justify-between">
                   <div className="flex-1">
                     {searchType === 'flights' ? (
-                      <div>
-                        <div className="flex items-center space-x-4 mb-3">
-                          <div className="text-lg font-semibold">
-                            {item.outboundJourney?.segments?.[0]?.departure?.airport || searchForm.origin} → {item.outboundJourney?.segments?.[item.outboundJourney?.segments?.length - 1]?.arrival?.airport || searchForm.destination}
-                          </div>
-                          <div className="text-sm text-gray-600 bg-gray-100 px-2 py-1 rounded">
-                            {item.outboundJourney?.duration || '2h 30m'}
+                      <div className="space-y-4">
+                        {/* Flight Header */}
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center space-x-3">
+                            <div className="text-lg font-semibold">
+                              {item.outboundJourney?.segments?.[0]?.departure?.airport || searchForm.origin} → {item.outboundJourney?.segments?.[item.outboundJourney?.segments?.length - 1]?.arrival?.airport || searchForm.destination}
+                            </div>
+                            <div className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-sm font-medium">
+                              {item.outboundJourney?.duration || '2h 30m'}
+                            </div>
+                            <div className={`px-2 py-1 rounded text-sm font-medium ${
+                              (item.outboundJourney?.segments?.length || 1) === 1 ? 
+                              'bg-green-100 text-green-800' : 'bg-orange-100 text-orange-800'
+                            }`}>
+                              {(item.outboundJourney?.segments?.length || 1) === 1 ? 
+                                'Direct' : `${(item.outboundJourney?.segments?.length || 1) - 1} stop${(item.outboundJourney?.segments?.length || 1) > 2 ? 's' : ''}`
+                              }
+                            </div>
                           </div>
                         </div>
                         
-                        {/* Flight Segments with Layovers */}
-                        <div className="space-y-3">
+                        {/* Flight Timeline */}
+                        <div className="bg-gray-50 p-4 rounded-lg">
                           {item.outboundJourney?.segments?.map((segment, segmentIndex) => (
-                            <div key={segmentIndex} className="border-l-2 border-blue-200 pl-4">
-                              <div className="flex items-center justify-between mb-2">
-                                <div className="flex items-center space-x-3">
-                                  <Plane size={14} className="text-blue-600" />
-                                  <span className="font-medium">
-                                    {segment.airline || 'XX'} {segment.flightNumber || '000'}
-                                  </span>
-                                  <span className="text-sm text-gray-600">
-                                    {segment.aircraft ? `${segment.aircraft}` : 'Aircraft TBD'}
-                                  </span>
+                            <div key={segmentIndex}>
+                              <div className="flex items-center justify-between py-2">
+                                <div className="flex items-center space-x-4">
+                                  <div className="flex items-center space-x-2">
+                                    <Plane size={16} className="text-blue-600" />
+                                    <span className="font-medium text-sm">
+                                      {segment.airline || 'XX'} {segment.flightNumber || '000'}
+                                    </span>
+                                    <span className="text-xs text-gray-500 bg-white px-2 py-1 rounded">
+                                      {segment.aircraft || 'Aircraft TBD'}
+                                    </span>
+                                  </div>
                                 </div>
-                                <div className="text-sm text-gray-500">
+                                <div className="text-sm text-gray-600">
                                   {segment.duration || 'Duration TBD'}
                                 </div>
                               </div>
                               
-                              <div className="flex items-center justify-between text-sm">
-                                <div className="flex items-center space-x-4">
-                                  <div>
-                                    <span className="font-mono font-medium">
+                              <div className="flex items-center justify-between text-sm mb-2">
+                                <div className="flex items-center space-x-6">
+                                  <div className="text-center">
+                                    <div className="font-mono font-bold text-lg">
                                       {segment.departure?.time ? 
                                         new Date(segment.departure.time).toLocaleTimeString([], {
                                           hour: '2-digit', 
@@ -724,15 +737,23 @@ const TravelApp = () => {
                                           hour12: false
                                         }) : '--:--'
                                       }
-                                    </span>
-                                    <span className="ml-2 text-gray-600">
+                                    </div>
+                                    <div className="text-xs text-gray-600">
                                       {segment.departure?.airport || 'XXX'}
-                                      {segment.departure?.terminal && ` (T${segment.departure.terminal})`}
-                                    </span>
+                                      {segment.departure?.terminal && ` T${segment.departure.terminal}`}
+                                    </div>
                                   </div>
-                                  <span className="text-gray-400">→</span>
-                                  <div>
-                                    <span className="font-mono font-medium">
+                                  
+                                  <div className="flex-1 flex items-center justify-center">
+                                    <div className="flex items-center space-x-2">
+                                      <div className="h-px bg-gray-300 flex-1 w-16"></div>
+                                      <Plane size={12} className="text-gray-400" />
+                                      <div className="h-px bg-gray-300 flex-1 w-16"></div>
+                                    </div>
+                                  </div>
+                                  
+                                  <div className="text-center">
+                                    <div className="font-mono font-bold text-lg">
                                       {segment.arrival?.time ? 
                                         new Date(segment.arrival.time).toLocaleTimeString([], {
                                           hour: '2-digit', 
@@ -740,148 +761,155 @@ const TravelApp = () => {
                                           hour12: false
                                         }) : '--:--'
                                       }
-                                    </span>
-                                    <span className="ml-2 text-gray-600">
+                                    </div>
+                                    <div className="text-xs text-gray-600">
                                       {segment.arrival?.airport || 'XXX'}
-                                      {segment.arrival?.terminal && ` (T${segment.arrival.terminal})`}
-                                    </span>
+                                      {segment.arrival?.terminal && ` T${segment.arrival.terminal}`}
+                                    </div>
                                   </div>
                                 </div>
                               </div>
                               
-                              {/* Layover Information */}
+                              {/* Layover */}
                               {segmentIndex < (item.outboundJourney?.segments?.length - 1) && (
-                                <div className="mt-2 p-2 bg-orange-50 rounded text-sm">
-                                  <div className="flex items-center space-x-2 text-orange-700">
-                                    <Clock size={14} />
-                                    <span className="font-medium">Layover in {segment.arrival?.airport}</span>
-                                  </div>
-                                  <div className="text-orange-600 text-xs mt-1">
-                                    Connection time: Calculate based on next flight departure
+                                <div className="my-3 p-3 bg-orange-50 border-l-4 border-orange-200 rounded">
+                                  <div className="flex items-center space-x-2">
+                                    <Clock size={14} className="text-orange-600" />
+                                    <span className="text-sm font-medium text-orange-800">
+                                      Layover in {segment.arrival?.airport} • Connection time varies
+                                    </span>
                                   </div>
                                 </div>
                               )}
                             </div>
                           )) || (
-                            <div className="border-l-2 border-blue-200 pl-4">
-                              <div className="flex items-center space-x-3 mb-2">
-                                <Plane size={14} className="text-blue-600" />
+                            <div className="flex items-center justify-between py-2">
+                              <div className="flex items-center space-x-4">
+                                <Plane size={16} className="text-blue-600" />
                                 <span className="font-medium">Flight Details Loading...</span>
-                              </div>
-                              <div className="text-sm text-gray-600">
-                                {searchForm.origin} → {searchForm.destination}
                               </div>
                             </div>
                           )}
                         </div>
                         
-                        {/* Essential Travel Information */}
-                        <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+                        {/* Essential Information - Always Visible */}
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                           {/* Baggage */}
-                          <div className="bg-green-50 p-2 rounded">
-                            <div className="font-medium text-green-800 mb-1">Baggage</div>
-                            <div className="text-green-700">
-                              {item.pricing?.fees?.find(fee => fee.type === 'BAGGAGE') ? 
-                                `${item.pricing.fees.find(fee => fee.type === 'BAGGAGE').amount} ${item.pricing.currency}` :
-                                'Carry-on included'
-                              }
+                          <div className="bg-white border border-gray-200 p-3 rounded-lg">
+                            <div className="flex items-center space-x-2 mb-1">
+                              <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                              <span className="text-xs font-medium text-gray-700">BAGGAGE</span>
                             </div>
-                            <div className="text-green-600 text-xs">
-                              Checked bag: See fare rules
-                            </div>
+                            <div className="text-sm font-medium">Carry-on included</div>
+                            <div className="text-xs text-gray-500">Checked bag fees apply</div>
                           </div>
                           
                           {/* Seat Selection */}
-                          <div className="bg-blue-50 p-2 rounded">
-                            <div className="font-medium text-blue-800 mb-1">Seats</div>
-                            <div className="text-blue-700">
-                              {item.pricing?.fees?.find(fee => fee.type === 'SEAT') ? 
-                                'Fee applies' : 'Standard selection'
-                              }
+                          <div className="bg-white border border-gray-200 p-3 rounded-lg">
+                            <div className="flex items-center space-x-2 mb-1">
+                              <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                              <span className="text-xs font-medium text-gray-700">SEATS</span>
                             </div>
-                            <div className="text-blue-600 text-xs">
-                              Premium seats extra
-                            </div>
+                            <div className="text-sm font-medium">Standard selection</div>
+                            <div className="text-xs text-gray-500">Premium seats extra</div>
                           </div>
                           
                           {/* Meals */}
-                          <div className="bg-purple-50 p-2 rounded">
-                            <div className="font-medium text-purple-800 mb-1">Meals</div>
-                            <div className="text-purple-700">
+                          <div className="bg-white border border-gray-200 p-3 rounded-lg">
+                            <div className="flex items-center space-x-2 mb-1">
+                              <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
+                              <span className="text-xs font-medium text-gray-700">MEALS</span>
+                            </div>
+                            <div className="text-sm font-medium">
                               {item.outboundJourney?.duration && 
                                parseInt(item.outboundJourney.duration.match(/(\d+)H/)?.[1] || 0) >= 3 ? 
-                                'Meal service' : 'Snacks/drinks'
+                                'Meal service' : 'Snacks & drinks'
                               }
                             </div>
-                            <div className="text-purple-600 text-xs">
-                              Based on flight duration
-                            </div>
+                            <div className="text-xs text-gray-500">Complimentary</div>
                           </div>
                           
-                          {/* Changes/Cancellation */}
-                          <div className="bg-red-50 p-2 rounded">
-                            <div className="font-medium text-red-800 mb-1">Changes</div>
-                            <div className="text-red-700">
-                              {item.pricing?.fees?.find(fee => fee.type === 'CHANGE') ? 
-                                'Fee applies' : 'See fare rules'
-                              }
+                          {/* Flexibility */}
+                          <div className="bg-white border border-gray-200 p-3 rounded-lg">
+                            <div className="flex items-center space-x-2 mb-1">
+                              <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+                              <span className="text-xs font-medium text-gray-700">CHANGES</span>
                             </div>
-                            <div className="text-red-600 text-xs">
-                              Cancellation terms vary
-                            </div>
+                            <div className="text-sm font-medium">Fees apply</div>
+                            <div className="text-xs text-gray-500">See fare conditions</div>
                           </div>
                         </div>
                         
-                        {/* Cabin Class & Fare Type */}
-                        <div className="mt-3 flex items-center space-x-4 text-sm text-gray-600">
-                          <div className="flex items-center space-x-1">
-                            <span className="font-medium">Class:</span>
-                            <span className="bg-gray-100 px-2 py-1 rounded text-xs">
-                              {item.travelClass || 'Economy'}
-                            </span>
-                          </div>
-                          <div className="flex items-center space-x-1">
-                            <span className="font-medium">Fare:</span>
-                            <span className="bg-gray-100 px-2 py-1 rounded text-xs">
-                              {item.pricing?.fareType || 'Standard'}
-                            </span>
-                          </div>
-                          {item.outboundJourney?.segments?.[0]?.stops && (
-                            <div className="flex items-center space-x-1">
-                              <span className="font-medium">Stops:</span>
-                              <span className={`px-2 py-1 rounded text-xs ${
-                                item.outboundJourney.segments[0].stops === 0 ? 'bg-green-100 text-green-800' : 'bg-orange-100 text-orange-800'
-                              }`}>
-                                {item.outboundJourney.segments[0].stops === 0 ? 'Direct' : `${item.outboundJourney.segments[0].stops} stop${item.outboundJourney.segments[0].stops > 1 ? 's' : ''}`}
+                        {/* Fare Details - Always Visible */}
+                        <div className="flex items-center justify-between text-sm bg-gray-50 p-3 rounded-lg">
+                          <div className="flex items-center space-x-4">
+                            <div className="flex items-center space-x-2">
+                              <span className="text-gray-600">Class:</span>
+                              <span className="bg-white px-2 py-1 rounded text-xs font-medium">
+                                {item.travelClass || 'Economy'}
                               </span>
                             </div>
-                          )}
+                            <div className="flex items-center space-x-2">
+                              <span className="text-gray-600">Fare:</span>
+                              <span className="bg-white px-2 py-1 rounded text-xs font-medium">
+                                {item.pricing?.fareType || 'Standard'}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="text-xs text-gray-500">
+                            Operated by {item.outboundJourney?.segments?.[0]?.airline || 'Airline'}
+                          </div>
                         </div>
                         
-                        {/* Return Flight Info (if available) */}
+                        {/* Return Flight - Always Visible if Available */}
                         {item.inboundJourney && (
-                          <div className="mt-4 pt-3 border-t border-gray-200">
-                            <div className="text-sm font-medium text-gray-700 mb-2">Return Flight</div>
-                            <div className="text-sm text-gray-600">
-                              <span className="font-medium">
-                                {item.inboundJourney.segments?.[0]?.airline} {item.inboundJourney.segments?.[0]?.flightNumber}
-                              </span>
-                              <span className="mx-2">•</span>
-                              <span>
-                                {item.inboundJourney.segments?.[0]?.departure?.airport} → {item.inboundJourney.segments?.[item.inboundJourney.segments.length - 1]?.arrival?.airport}
-                              </span>
-                              {item.inboundJourney.segments?.[0]?.departure?.time && (
-                                <>
-                                  <span className="mx-2">•</span>
-                                  <span className="font-mono">
-                                    {new Date(item.inboundJourney.segments[0].departure.time).toLocaleTimeString([], {
-                                      hour: '2-digit', 
-                                      minute: '2-digit',
-                                      hour12: false
-                                    })}
+                          <div className="border-t pt-4">
+                            <div className="text-sm font-medium text-gray-700 mb-2 flex items-center space-x-2">
+                              <span>Return Flight</span>
+                              <div className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs">
+                                {item.inboundJourney.duration || 'Duration TBD'}
+                              </div>
+                            </div>
+                            <div className="bg-gray-50 p-3 rounded-lg">
+                              <div className="flex items-center justify-between text-sm">
+                                <div className="flex items-center space-x-4">
+                                  <Plane size={14} className="text-blue-600" />
+                                  <span className="font-medium">
+                                    {item.inboundJourney.segments?.[0]?.airline} {item.inboundJourney.segments?.[0]?.flightNumber}
                                   </span>
-                                </>
-                              )}
+                                </div>
+                                <div className="flex items-center space-x-6">
+                                  <div className="text-center">
+                                    <div className="font-mono font-medium">
+                                      {item.inboundJourney.segments?.[0]?.departure?.time ? 
+                                        new Date(item.inboundJourney.segments[0].departure.time).toLocaleTimeString([], {
+                                          hour: '2-digit', 
+                                          minute: '2-digit',
+                                          hour12: false
+                                        }) : '--:--'
+                                      }
+                                    </div>
+                                    <div className="text-xs text-gray-600">
+                                      {item.inboundJourney.segments?.[0]?.departure?.airport}
+                                    </div>
+                                  </div>
+                                  <span className="text-gray-400">→</span>
+                                  <div className="text-center">
+                                    <div className="font-mono font-medium">
+                                      {item.inboundJourney.segments?.[item.inboundJourney.segments.length - 1]?.arrival?.time ? 
+                                        new Date(item.inboundJourney.segments[item.inboundJourney.segments.length - 1].arrival.time).toLocaleTimeString([], {
+                                          hour: '2-digit', 
+                                          minute: '2-digit',
+                                          hour12: false
+                                        }) : '--:--'
+                                      }
+                                    </div>
+                                    <div className="text-xs text-gray-600">
+                                      {item.inboundJourney.segments?.[item.inboundJourney.segments.length - 1]?.arrival?.airport}
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
                             </div>
                           </div>
                         )}
