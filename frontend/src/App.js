@@ -214,8 +214,11 @@ const TravelApp = () => {
         
         // If all strategies failed, throw the last error
         if (!results) {
+          console.error('All hotel search strategies failed. Last error:', lastError);
           throw lastError || new Error('All hotel search strategies failed');
         }
+        
+        console.log('Hotel search succeeded with results:', results);
       }
       
       function getBetterCityCode(cityName) {
@@ -320,20 +323,25 @@ const TravelApp = () => {
       let resultsArray = [];
       if (results) {
         console.log('Results type:', typeof results);
-        console.log('Results keys:', Object.keys(results));
+        console.log('Results structure:', {
+          success: results.success,
+          hasData: !!results.data,
+          dataType: typeof results.data,
+          dataKeys: results.data ? Object.keys(results.data) : null
+        });
         
         if (Array.isArray(results)) {
           resultsArray = results;
           console.log('Using results as direct array');
-        } else if (results.data && Array.isArray(results.data)) {
-          resultsArray = results.data;
-          console.log('Using results.data as array');
-        } else if (results.data && results.data.flights && Array.isArray(results.data.flights)) {
-          resultsArray = results.data.flights;
-          console.log('Using results.data.flights as array');
         } else if (results.data && results.data.hotels && Array.isArray(results.data.hotels)) {
           resultsArray = results.data.hotels;
           console.log('Using results.data.hotels as array');
+        } else if (results.data && results.data.flights && Array.isArray(results.data.flights)) {
+          resultsArray = results.data.flights;
+          console.log('Using results.data.flights as array');
+        } else if (results.data && Array.isArray(results.data)) {
+          resultsArray = results.data;
+          console.log('Using results.data as array');
         } else if (results.flights && Array.isArray(results.flights)) {
           resultsArray = results.flights;
           console.log('Using results.flights as array');
@@ -342,7 +350,10 @@ const TravelApp = () => {
           console.log('Using results.hotels as array');
         } else {
           console.warn('Unexpected response format:', results);
-          console.warn('Available properties:', Object.keys(results));
+          console.warn('Available properties:', Object.keys(results || {}));
+          if (results.data) {
+            console.warn('Data properties:', Object.keys(results.data || {}));
+          }
           resultsArray = [];
         }
       } else {
