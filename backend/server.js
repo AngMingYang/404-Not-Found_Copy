@@ -314,7 +314,7 @@ app.use((err, req, res, next) => {
 });
 
 // 404 handler
-app.use('*', (req, res) => {
+app.use('/{*any}', (req, res) => {
     res.status(404).json({
         success: false,
         message: `Route not found: ${req.method} ${req.originalUrl}`,
@@ -330,7 +330,6 @@ app.use('*', (req, res) => {
         timestamp: new Date().toISOString()
     });
 });
-
 const PORT = process.env.PORT || 8080;
 
 // Graceful shutdown handlers
