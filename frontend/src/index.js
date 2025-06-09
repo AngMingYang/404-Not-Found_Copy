@@ -4,7 +4,9 @@ import './index.css';
 import App from './App';
 import reportWebVitals from './reportWebVitals';
 
-const root = ReactDOM.createRoot(document.getElementById('root'));
+const root = ReactDOM.createRoot(document.getElementById('root'));  //gets the div with id of root
+//renders this at the place of root.
+//app function comes from app.css
 root.render(
   <React.StrictMode>
     <App />
