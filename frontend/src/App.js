@@ -108,18 +108,22 @@ const TravelApp = () => {
         });
         
       } else if (searchType === 'hotels') {
-        endpoint = '/api/hotels/search';
-        searchData = {
-          location: searchForm.destination,
+        // Build query parameters for GET request
+        const params = new URLSearchParams({
+          city: searchForm.destination,
           checkIn: searchForm.departDate,
           checkOut: searchForm.returnDate,
-          guests: searchForm.passengers,
-          rooms: searchForm.rooms
-        };
+          adults: searchForm.passengers.toString(),
+          rooms: searchForm.rooms.toString(),
+          currency: 'USD',
+          max: '20'
+        });
         
+        endpoint = `/api/hotels/search?${params.toString()}`;
+        
+        // Use GET request for hotels
         results = await apiCall(endpoint, {
-          method: 'POST',
-          body: JSON.stringify(searchData)
+          method: 'GET'
         });
       }
 
@@ -134,8 +138,12 @@ const TravelApp = () => {
           resultsArray = results.data;
         } else if (results.data && results.data.flights && Array.isArray(results.data.flights)) {
           resultsArray = results.data.flights;
+        } else if (results.data && results.data.hotels && Array.isArray(results.data.hotels)) {
+          resultsArray = results.data.hotels;
         } else if (results.flights && Array.isArray(results.flights)) {
           resultsArray = results.flights;
+        } else if (results.hotels && Array.isArray(results.hotels)) {
+          resultsArray = results.hotels;
         } else {
           console.warn('Unexpected response format:', results);
           resultsArray = [];
@@ -399,6 +407,8 @@ const TravelApp = () => {
       results = searchResults;
     } else if (searchResults && searchResults.flights && Array.isArray(searchResults.flights)) {
       results = searchResults.flights;
+    } else if (searchResults && searchResults.hotels && Array.isArray(searchResults.hotels)) {
+      results = searchResults.hotels;
     } else if (searchResults && Array.isArray(searchResults.data)) {
       results = searchResults.data;
     }
@@ -454,18 +464,31 @@ const TravelApp = () => {
                       </div>
                     ) : (
                       <div>
-                        <h3 className="text-lg font-semibold">{item.name || 'Hotel Name'}</h3>
-                        <p className="text-sm text-gray-600">{item.location || searchForm.destination}</p>
+                        <h3 className="text-lg font-semibold">{item.hotel?.name || item.name || 'Hotel Name'}</h3>
+                        <p className="text-sm text-gray-600">
+                          {item.hotel?.address?.lines?.[0] || item.address || searchForm.destination}
+                        </p>
                         <div className="flex items-center mt-1">
                           {[...Array(5)].map((_, i) => (
                             <Star
                               key={i}
                               size={16}
-                              className={`${i < (item.rating || 4) ? 'text-yellow-400 fill-current' : 'text-gray-300'}`}
+                              className={`${i < (item.hotel?.rating || item.rating || 4) ? 'text-yellow-400 fill-current' : 'text-gray-300'}`}
                             />
                           ))}
-                          <span className="ml-2 text-sm text-gray-600">({item.reviews || '245'} reviews)</span>
+                          <span className="ml-2 text-sm text-gray-600">
+                            ({item.hotel?.rating || item.rating || 4}.0 stars)
+                          </span>
                         </div>
+                        {item.hotel?.amenities && (
+                          <div className="flex flex-wrap gap-1 mt-2">
+                            {item.hotel.amenities.slice(0, 3).map((amenity, idx) => (
+                              <span key={idx} className="px-2 py-1 bg-blue-50 text-blue-700 text-xs rounded">
+                                {amenity}
+                              </span>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
