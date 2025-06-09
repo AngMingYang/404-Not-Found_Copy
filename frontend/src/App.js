@@ -31,9 +31,12 @@ const TravelApp = () => {
       : 'https://your-api-domain.com';
   }, []);
 
-  // Memoized API helper
+  // Fetch API helper
   const apiCall = useCallback(async (endpoint, options = {}) => {
     try {
+      console.log('Making request to:', `${API_BASE}${endpoint}`);
+      console.log('Request options:', options);
+      
       const response = await fetch(`${API_BASE}${endpoint}`, {
         headers: {
           'Content-Type': 'application/json',
@@ -42,11 +45,18 @@ const TravelApp = () => {
         ...options
       });
       
+      console.log('Response status:', response.status);
+      console.log('Response headers:', response.headers);
+      
       if (!response.ok) {
-        throw new Error(`API Error: ${response.status}`);
+        const errorText = await response.text();
+        console.log('Error response body:', errorText);
+        throw new Error(`API Error: ${response.status} - ${errorText}`);
       }
       
-      return await response.json();
+      const responseData = await response.json();
+      console.log('Response data:', responseData);
+      return responseData;
     } catch (error) {
       console.error('API call failed:', error);
       throw error;
@@ -73,16 +83,30 @@ const TravelApp = () => {
       let endpoint = '';
       let searchData = {};
 
+      let results;
+      
       if (searchType === 'flights') {
-        endpoint = '/api/flights/search';
-        searchData = {
+        // Build query parameters for GET request
+        const params = new URLSearchParams({
           origin: searchForm.origin,
           destination: searchForm.destination,
           departureDate: searchForm.departDate,
-          returnDate: searchForm.returnDate,
-          adults: searchForm.passengers,
-          max: 10
-        };
+          adults: searchForm.passengers.toString(),
+          max: '10'
+        });
+        
+        // Add returnDate if it exists
+        if (searchForm.returnDate) {
+          params.append('returnDate', searchForm.returnDate);
+        }
+        
+        endpoint = `/api/flights/search?${params.toString()}`;
+        
+        // Use GET request for flights
+        results = await apiCall(endpoint, {
+          method: 'GET'
+        });
+        
       } else if (searchType === 'hotels') {
         endpoint = '/api/hotels/search';
         searchData = {
@@ -92,22 +116,27 @@ const TravelApp = () => {
           guests: searchForm.passengers,
           rooms: searchForm.rooms
         };
+        
+        results = await apiCall(endpoint, {
+          method: 'POST',
+          body: JSON.stringify(searchData)
+        });
       }
 
-      const results = await apiCall(endpoint, {
-        method: 'POST',
-        body: JSON.stringify(searchData)
-      });
+      console.log('Search results:', results);
+      setSearchResults(results.data || []);
+      setActiveTab('results');
 
+      console.log('Search results:', results);
       setSearchResults(results.data || []);
       setActiveTab('results');
     } catch (error) {
       console.error('Search failed:', error);
-      alert('Search failed. Please try again.');
+      alert(`Search failed: ${error.message}. Please check your backend configuration and try again.`);
     } finally {
       setIsLoading(false);
     }
-  }, [searchForm, searchType, apiCall]);
+  }, [searchForm, searchType, apiCall, API_BASE]);
 
   // Toggle favorite function
   const toggleFavorite = useCallback(async (item) => {
