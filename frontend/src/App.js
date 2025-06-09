@@ -200,13 +200,20 @@ const TravelApp = () => {
           try {
             results = await apiCall(endpoint, { method: 'GET' });
             console.log(`✅ Strategy ${i + 1} (${strategy.label}) succeeded!`);
+            console.log('Raw API response:', results);
             break; // Success, exit loop
           } catch (error) {
-            console.log(`❌ Strategy ${i + 1} (${strategy.label}) failed:`, error.message);
+            console.log(`❌ Strategy ${i + 1} (${strategy.label}) failed:`, error);
+            console.log('Error type:', typeof error);
+            console.log('Error constructor:', error.constructor.name);
+            console.log('Error message:', error.message);
+            console.log('Error stack:', error.stack);
+            
             lastError = error;
             
             // If it's not a "city not found" error, don't try other strategies
-            if (!error.message.includes('City not found') && !error.message.includes('Hotel search service unavailable')) {
+            if (!error.message?.includes('City not found') && !error.message?.includes('Hotel search service unavailable')) {
+              console.log('Non-recoverable error, stopping strategies');
               throw error;
             }
           }
