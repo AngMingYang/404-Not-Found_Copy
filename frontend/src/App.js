@@ -123,17 +123,42 @@ const TravelApp = () => {
         // Build query parameters for GET request
         // Try different city name formats to improve success rate
         let cityName = searchForm.destination.trim();
+        let country = '';
         
-        // Remove common words that might cause issues
-        cityName = cityName
-          .replace(/\s+city$/i, '') // Remove "City" at the end
-          .replace(/^new\s+york\s+city$/i, 'New York') // Specific fix for NYC
-          .replace(/^las\s+vegas$/i, 'Las Vegas')
-          .replace(/^los\s+angeles$/i, 'Los Angeles')
-          .replace(/^san\s+francisco$/i, 'San Francisco');
+        // Extract country if user typed "City, Country" format
+        if (cityName.includes(',')) {
+          const parts = cityName.split(',').map(s => s.trim());
+          cityName = parts[0];
+          country = parts[1];
+        }
+        
+        // Common city name mappings for better Amadeus compatibility
+        const cityMappings = {
+          'new york': 'NYC',
+          'new york city': 'NYC', 
+          'nyc': 'NYC',
+          'los angeles': 'LAX',
+          'la': 'LAX',
+          'san francisco': 'SFO',
+          'sf': 'SFO',
+          'las vegas': 'LAS',
+          'vegas': 'LAS',
+          'chicago': 'CHI',
+          'washington': 'WAS',
+          'washington dc': 'WAS',
+          'boston': 'BOS',
+          'miami': 'MIA',
+          'paris': 'PAR',
+          'london': 'LON',
+          'tokyo': 'TYO',
+          'rome': 'ROM'
+        };
+        
+        const cityKey = cityName.toLowerCase();
+        const finalCityName = cityMappings[cityKey] || cityName;
         
         const params = new URLSearchParams({
-          city: cityName,
+          city: finalCityName,
           checkIn: searchForm.departDate,
           checkOut: searchForm.returnDate,
           adults: searchForm.passengers.toString(),
@@ -142,9 +167,16 @@ const TravelApp = () => {
           max: '20'
         });
         
+        // Add country if we detected one
+        if (country) {
+          params.append('country', country);
+        }
+        
         endpoint = `/api/hotels/search?${params.toString()}`;
         
-        console.log('Hotel search city:', cityName);
+        console.log('Hotel search - Original:', searchForm.destination);
+        console.log('Hotel search - Final city:', finalCityName);
+        console.log('Hotel search - Country:', country || 'none');
         console.log('Hotel search URL:', `${API_BASE}${endpoint}`);
         
         // Use GET request for hotels
@@ -342,7 +374,7 @@ const TravelApp = () => {
               <MapPin size={18} className="absolute left-3 top-3 text-gray-400" />
               <input
                 type="text"
-                placeholder={searchType === 'flights' ? 'Destination city or airport' : 'City name (e.g., New York, Paris)'}
+                placeholder={searchType === 'flights' ? 'Destination city or airport' : 'City name (e.g., NYC, Paris, London, or "Paris, France")'}
                 value={searchForm.destination}
                 onChange={(e) => handleInputChange('destination', e.target.value)}
                 className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
