@@ -640,6 +640,27 @@ const getFlightStatus = async (req, res) => {
     }
 };
 
+// Get the top matching airport's IATA code given a city or airport name
+async function getIataCode(cityOrAirportName) {
+  try {
+    const amadeusResult = await amadeusService.searchAirportsAndCities(cityOrAirportName, {
+      max: 1,
+      subType: 'AIRPORT' // <- restrict search to airports
+    });
+
+    if (amadeusResult.success && Array.isArray(amadeusResult.data) && amadeusResult.data.length > 0) {
+      //return amadeusResult.data[0].iataCode;
+      return amadeusResult
+    }
+
+    return amadeusResult; // No airports found
+  } catch (error) {
+    console.error(`Error fetching IATA code for "${cityOrAirportName}":`, error.message || error);
+    return amadeusResult;
+  }
+}
+
+
 module.exports = {
     searchFlights,
     getAirports,
@@ -647,5 +668,6 @@ module.exports = {
     getAirportByCode,
     getAirportsByCity,
     getFlightOffer,
-    getFlightStatus
+    getFlightStatus,
+    getIataCode
 };

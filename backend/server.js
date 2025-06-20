@@ -398,4 +398,16 @@ app.listen(PORT, () => {
     console.log('✅ Server is ready and listening!');
 });
 
+
+
+
+const { getIataCode } = require('./controllers/flightController');
+(async () => {
+  const code = await getIataCode('Chang');
+  console.log('Code:', code); // expecting SIN
+})();
+
+
+
+
 module.exports = app;
