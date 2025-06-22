@@ -400,14 +400,14 @@ app.listen(PORT, () => {
 
 
 
-
+/*
 const { getIataCode } = require('./controllers/flightController');
 (async () => {
-  const code = await getIataCode('Chang');
+  const code = await getIataCode("East L");
   console.log('Code:', code); // expecting SIN
 })();
 
-
+*/
 
 
 module.exports = app;

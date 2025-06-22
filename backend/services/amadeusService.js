@@ -42,7 +42,8 @@ const searchAirportsAndCities = async (keyword, options = {}) => {
             page: {
                 limit: options.limit || 10  // Using page.limit instead of max
             },
-            subType: options.subType || 'AIRPORT'  // Changed from include to subType
+            subType: options.subType || "AIRPORT,CITY",  // Changed from include to subType
+            view : "LIGHT"
         };
 
         const response = await amadeus.referenceData.locations.get(searchParams);
