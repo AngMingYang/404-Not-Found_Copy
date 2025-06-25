@@ -72,12 +72,17 @@ const cache = new SimpleCache();
 
 // Cache key generators
 const generateCacheKey = (prefix, ...parts) => {
-    return `${prefix}:${parts.join(':')}`;
+    // Convert all parts to lowercase to ensure case-insensitivity
+    const lowerParts = parts.map(p => 
+      typeof p === 'string' ? p.toLowerCase() : JSON.stringify(p).toLowerCase()
+    );
+    return `${prefix}:${lowerParts.join(':')}`;
 };
 
 // Cache wrapper for functions
 const withCache = async (key, fetchFunction, ttlSeconds = 300) => {
     // Try to get from cache first
+
     const cachedResult = cache.get(key);
     if (cachedResult !== undefined) {
         console.log(`Cache HIT: ${key}`);
