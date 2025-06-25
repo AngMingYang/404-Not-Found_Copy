@@ -43,6 +43,46 @@ const TravelApp = () => {
     ? 'http://localhost:8080' 
     : 'https://your-api-domain.com';
 
+
+  // Trippy Logo Component
+  const TrippyLogo = ({ size = 'medium', showText = true }) => {
+    const sizes = {
+      small: { pin: 'w-8 h-10', plane: 'w-4 h-4', text: 'text-sm' },
+      medium: { pin: 'w-12 h-16', plane: 'w-6 h-6', text: 'text-lg' },
+      large: { pin: 'w-24 h-32', plane: 'w-12 h-12', text: 'text-2xl' }
+    };
+    
+    const currentSize = sizes[size];
+    
+    return (
+      <div className="flex items-center space-x-2">
+        <div className="relative">
+          {/* Pin shape using CSS */}
+          <div 
+            className={`${currentSize.pin} relative bg-blue-500 mx-auto`}
+            style={{
+              clipPath: "path('M60 0C93 0 120 27 120 60C120 100 60 160 60 160C60 160 0 100 0 60C0 27 27 0 60 0Z')",
+              transform: 'scale(0.5)' // Scale down the clip-path since it's designed for 120px
+            }}
+          >
+            {/* Plane icon inside pin */}
+            <div 
+              className={`absolute top-1/3 left-1/2 transform -translate-x-1/2 -translate-y-1/2 rotate-45 ${currentSize.plane} bg-white`}
+              style={{
+                clipPath: 'polygon(50% 0%, 60% 25%, 100% 40%, 60% 50%, 70% 100%, 50% 85%, 30% 100%, 40% 50%, 0% 40%, 40% 25%)'
+              }}
+            />
+          </div>
+        </div>
+        {showText && (
+          <span className={`font-bold text-blue-600 ${currentSize.text}`}>
+            Trippy
+          </span>
+        )}
+      </div>
+    );
+  };
+
   // Helper functions
   const getAirlineName = (code) => {
     const airlines = {
@@ -288,7 +328,7 @@ const TravelApp = () => {
         <button onClick={() => setSidebarOpen(true)}>
           <Menu size={24} />
         </button>
-        <h1 className="text-xl font-bold text-blue-600">TravelApp</h1>
+        <TrippyLogo size="small" showText={true} />
         <div></div>
       </div>
 
@@ -304,7 +344,7 @@ const TravelApp = () => {
         {/* Sidebar */}
         <div className={`fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-lg transform transition-transform duration-300 ease-in-out ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0 lg:static lg:inset-0`}>
           <div className="flex items-center justify-between h-16 px-4 border-b">
-            <h1 className="text-xl font-bold text-blue-600">TravelApp</h1>
+            <TrippyLogo size="medium" showText={true} />
             <button onClick={() => setSidebarOpen(false)} className="lg:hidden">
               <X size={24} />
             </button>
@@ -365,6 +405,7 @@ const TravelApp = () => {
                   <div className="max-w-6xl mx-auto">
                     <div className="mb-12">
                       <h1 className="text-5xl md:text-6xl font-bold text-white leading-tight">
+                        <TrippyLogo size="large" showText={true} />
                         {searchType === 'hotels' ? 'Find your place to stay' : 'Find your perfect flight'}
                       </h1>
                     </div>
