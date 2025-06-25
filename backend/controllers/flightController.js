@@ -2,6 +2,8 @@ const amadeusService = require('../services/amadeusService');
 const cacheService = require('../services/cacheService');
 const { body, query, validationResult } = require('express-validator');
 
+const { DbIataCode } = require('../services/supabaseService');
+
 /**
  * Search flights
  * GET /api/flights/search?origin=LAX&destination=JFK&departureDate=2025-07-01&returnDate=2025-07-08&passengers=2
@@ -60,56 +62,62 @@ const searchFlights = async (req, res) => {
         // ===============================
         // STEP: Convert Origin/Destination if needed
         // ===============================
-
-        
         console.log(`[searchFlights] Incoming request`, {
-            method: req.method,
-            origin,
-            destination,
-            departureDate,
-            returnDate
-            });
-            
+        method: req.method,
+        origin,
+        destination,
+        departureDate,
+        returnDate
+        });
 
-
-
+        // Origin
         if (origin.length !== 3) {
-            const matches = findIataCode(origin);
-            let prev_origin = origin
-            if (matches.length === 1) {
-                origin = matches[0].iata;
-                console.log(`[searchFlights] ALERT: origin ${prev_origin} -> ${origin}`);
-            } else if (matches.length > 1) {
+        const matches = await DbIataCode(origin);
+        const prev_origin = origin;
 
+        if (matches.length === 1) {
+            origin = matches[0].IATA;
+            console.log(`[searchFlights] ALERT: origin ${prev_origin} -> ${matches[0].Name} (${origin})`);
+        } else if (matches.length > 1) {
+            const matchList = matches
+            .slice(0, 10)
+            .map(m => `${m.Name} (${m.IATA})`)
+            .join(', ');
             return res.status(400).json({
-                success: false,
-                error: `Ambiguous origin name. \n Matches found: ${matches.slice(0, 10).map(m => `${m.name} (${m.iata})`).join(', ')}`
+            success: false,
+            error: `Ambiguous origin name. Matches found: ${matchList}`
             });
-            } else {
-                return res.status(400).json({
-                    success: false,
-                    error: `No IATA code found for origin: ${origin}`
-                });
-            }
+        } else {
+            return res.status(400).json({
+            success: false,
+            error: `No IATA code found for origin: ${origin}`
+            });
+        }
         }
 
+        // Destination
         if (destination.length !== 3) {
-            const matches = findIataCode(destination);
-            let prev_destination = destination;
-            if (matches.length === 1) {
-                destination = matches[0].iata;
-                console.log(`[searchFlights] ALERT: origin ${prev_destination} -> ${destination}`);
-            } else if (matches.length > 1) {
-                return res.status(400).json({
-                    success: false,
-                    error: `Ambiguous destination name. \n Matches found: ${matches.slice(0, 10).map(m => `${m.name} (${m.iata})`).join(', ')}`
-                });
-            } else {
-                return res.status(400).json({
-                    success: false,
-                    error: `No IATA code found for destination: ${destination}`
-                });
-            }
+        const matches = await DbIataCode(destination);
+        const prev_destination = destination;
+
+        if (matches.length === 1) {
+            destination = matches[0].IATA;
+            console.log(`[searchFlights] ALERT: destination ${prev_destination} -> ${matches[0].Name} (${destination})`);
+        } else if (matches.length > 1) {
+            const matchList = matches
+            .slice(0, 10)
+            .map(m => `${m.Name} (${m.IATA})`)
+            .join(', ');
+            return res.status(400).json({
+            success: false,
+            error: `Ambiguous destination name. Matches found: ${matchList}`
+            });
+        } else {
+            return res.status(400).json({
+            success: false,
+            error: `No IATA code found for destination: ${destination}`
+            });
+        }
         }
 
         console.log(`[searchFlights] Pre-IATA conversion`, {
@@ -751,6 +759,7 @@ const parsedAirportData = rawRows.slice(1).map(row => ({ // Skip first row
     country: row[3],
     iata: row[4]
 }));
+
 
 // Helper function
 function findIataCode(query) {
