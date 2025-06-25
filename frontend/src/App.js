@@ -1,6 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Search, MapPin, Calendar, Users, Plane, Hotel, Star, Clock, Filter, Menu, X, ChevronRight, Globe, Heart, User, ChevronDown } from 'lucide-react';
 
+
+
+
 const TravelApp = () => {
   const [activeTab, setActiveTab] = useState('search');
   const [searchType, setSearchType] = useState('flights');
@@ -9,6 +12,8 @@ const TravelApp = () => {
   const [favorites, setFavorites] = useState([]);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
+  const [sortWeight, setSortWeight] = useState(50);
+
   
   // Filter state
   const [filters, setFilters] = useState({
@@ -98,6 +103,7 @@ const TravelApp = () => {
   }, []);
 
   // Apply filters
+  /*
   const filteredResults = searchResults.filter(item => {
     if (searchType === 'flights') {
       const price = parseFloat(item.pricing?.total || item.pricing?.grandTotal || item.price || 0);
@@ -108,7 +114,45 @@ const TravelApp = () => {
       if (filters.stops === '1stop' && stops !== 1) return false;
     }
     return true;
+  });*/
+  const filteredResults = [...searchResults]
+  .filter(item => {
+    if (searchType !== 'flights') return true;
+
+    const price = parseFloat(item.pricing?.total || item.pricing?.grandTotal || item.price || 0);
+    const durationStr = item.outboundJourney?.duration || '';
+    const match = durationStr.match(/PT(\d+H)?(\d+M)?/);
+    const hours = match?.[1] ? parseInt(match[1]) : 0;
+    const minutes = match?.[2] ? parseInt(match[2]) : 0;
+    const durationMins = hours * 60 + minutes;
+
+    if (price < filters.priceRange[0] || price > filters.priceRange[1]) return false;
+    const stops = item.outboundJourney?.segments?.length - 1 || 0;
+    if (filters.stops === 'direct' && stops > 0) return false;
+    if (filters.stops === '1stop' && stops !== 1) return false;
+    return true;
+  })
+  .sort((a, b) => {
+    if (searchType !== 'flights') return 0;
+
+    const getPrice = (item) => parseFloat(item.pricing?.total || item.pricing?.grandTotal || item.price || 0);
+    const getDuration = (item) => {
+      const match = item.outboundJourney?.duration?.match(/PT(\d+H)?(\d+M)?/);
+      const hours = match?.[1] ? parseInt(match[1]) : 0;
+      const minutes = match?.[2] ? parseInt(match[2]) : 0;
+      return hours * 60 + minutes;
+    };
+
+    const aPrice = getPrice(a), bPrice = getPrice(b);
+    const aDur = getDuration(a), bDur = getDuration(b);
+
+    const weight = sortWeight / 100;
+    const aScore = aPrice * (1 - weight) + aDur * weight;
+    const bScore = bPrice * (1 - weight) + bDur * weight;
+
+    return aScore - bScore;
   });
+
 
   // Search function
   const handleSearch = useCallback(async () => {
@@ -544,6 +588,9 @@ const TravelApp = () => {
                 </div>
                 
                 {/* Filter Panel */}
+
+                
+                
                 {showFilters && (
                   <div className="bg-white rounded-lg shadow-md p-6 mb-6 border">
                     <h3 className="text-lg font-semibold mb-4">Filters</h3>
@@ -564,19 +611,44 @@ const TravelApp = () => {
                       </div>
                       
                       {searchType === 'flights' && (
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">Stops</label>
-                          <select
-                            value={filters.stops}
-                            onChange={(e) => handleFilterChange('stops', e.target.value)}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
-                          >
-                            <option value="any">Any number of stops</option>
-                            <option value="direct">Direct flights only</option>
-                            <option value="1stop">1 stop maximum</option>
-                          </select>
-                        </div>
-                      )}
+                          <>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-2">Stops</label>
+                              <select
+                                value={filters.stops}
+                                onChange={(e) => handleFilterChange('stops', e.target.value)}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+                              >
+                                <option value="any">Any number of stops</option>
+                                <option value="direct">Direct flights only</option>
+                                <option value="1stop">1 stop maximum</option>
+                              </select>
+                            </div>
+
+                            {/* 👉 New Slider */}
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-2">
+                                Balance (Price vs Duration ): {sortWeight}%
+                              </label>
+                              <input
+                                type="range"
+                                min="0"
+                                max="100"
+                                value={sortWeight}
+                                onChange={(e) => setSortWeight(parseInt(e.target.value))}
+                                className="w-full"
+                              />
+                              <div className="text-sm text-gray-500 mt-1">
+                                {sortWeight < 50
+                                  ? `Prioritize Price (${100 - sortWeight}%)`
+                                  : sortWeight > 50
+                                  ? `Prioritize Duration (${sortWeight}%)`
+                                  : 'Equal Priority'}
+                              </div>
+                            </div>
+                          </>
+                        )}
+
                       
                       <div className="flex items-end">
                         <button
