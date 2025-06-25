@@ -41,6 +41,8 @@ const searchHotels = async (req, res) => {
             });
         }
 
+        
+
         try {
             // Step 1: Convert city name to proper Amadeus city code
             //const cityCode = getCityCode(city);
@@ -55,6 +57,16 @@ const searchHotels = async (req, res) => {
             } else {
                 // Lookup city name in IATA database via DbIataCode
                 const matches = await DbIataCode(city);
+
+
+                if (!Array.isArray(matches)) {
+                    return res.status(500).json({
+                        success: false,
+                        error: 'Failed to lookup city code',
+                    });
+                    }
+
+
 
                 if (matches.length === 1) {
                     cityCode = matches[0].IATA;
@@ -155,9 +167,10 @@ const searchHotels = async (req, res) => {
             const hotelIds = hotelListResult.data
                 .slice(0, Math.min(parseInt(max), 10)) // Limit to 10 for testing
                 .map(hotel => hotel.hotelId);
-
+            
             console.log('🏨 Getting offers for hotels:', hotelIds);
 
+            
             const offersParams = {
                 hotelIds,
                 adults: parseInt(adults),
