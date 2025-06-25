@@ -4,7 +4,7 @@ import { Search, MapPin, Calendar, Users, Plane, Hotel, Star, Clock, Filter, Men
 
 
 
-const TravelApp = () => {
+const Trippy = () => {
   const [activeTab, setActiveTab] = useState('search');
   const [searchType, setSearchType] = useState('flights');
   const [isLoading, setIsLoading] = useState(false);
@@ -1120,4 +1120,4 @@ const price = parseFloat(
   );
 };
 
-export default TravelApp;
+export default Trippy;

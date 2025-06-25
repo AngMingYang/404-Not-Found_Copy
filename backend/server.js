@@ -107,7 +107,7 @@ app.get('/health', (req, res) => {
 app.get('/test', (req, res) => {
     res.json({
         success: true,
-        message: 'Travel App Backend is running!',
+        message: 'Trippy Backend is running!',
         timestamp: new Date().toISOString(),
         environment: {
             node_version: process.version,
@@ -166,7 +166,7 @@ app.get('/test-db/quick', (req, res) => {
 // API root endpoint
 app.get('/api', (req, res) => {
     res.json({
-        message: 'Travel App API',
+        message: 'Trippy API',
         version: '1.0.0',
         status: 'active',
         endpoints: {
@@ -369,7 +369,7 @@ process.on('unhandledRejection', (reason, promise) => {
 });
 
 app.listen(PORT, () => {
-    console.log('🚀 Travel App Backend Starting...');
+    console.log('🚀 Trippy Backend Starting...');
     console.log('====================================');
     console.log(`📊 Server: http://localhost:${PORT}`);
     console.log(`📋 Health: http://localhost:${PORT}/health`);
