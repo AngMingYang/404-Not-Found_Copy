@@ -693,13 +693,15 @@ const TravelApp = () => {
                       
                       <div className="flex items-end">
                         <button
-                          onClick={() => setFilters({
+                          onClick={() => {setFilters({
                             priceRange: [0, 5000],
                             stops: 'any',
                             airlines: [],
                             departureTime: 'any',
                             duration: 'any'
-                          })}
+                          });
+                           setSortWeight(50); // ← Add this line
+                        }}
                           className="px-4 py-2 text-blue-600 border border-blue-600 rounded-lg hover:bg-blue-50 transition-colors"
                         >
                           Clear Filters
