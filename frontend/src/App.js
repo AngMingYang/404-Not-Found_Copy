@@ -143,19 +143,38 @@ const TravelApp = () => {
   }, []);
 
   // Apply filters
-  /*
-  const filteredResults = searchResults.filter(item => {
-    if (searchType === 'flights') {
-      const price = parseFloat(item.pricing?.total || item.pricing?.grandTotal || item.price || 0);
-      if (price < filters.priceRange[0] || price > filters.priceRange[1]) return false;
-      
-      const stops = item.outboundJourney?.segments?.length - 1 || 0;
-      if (filters.stops === 'direct' && stops > 0) return false;
-      if (filters.stops === '1stop' && stops !== 1) return false;
-    }
-    return true;
-  });*/
-  const filteredResults = [...searchResults]
+  
+const filteredResults = searchResults.filter(item => {
+
+
+
+const price = parseFloat(
+  item.pricing?.total ||
+  item.pricing?.grandTotal ||
+  item.price?.total ||
+  item.price?.amount ||
+  item.offers?.[0]?.price?.total || // ✅ Add this line
+  item.price ||
+  0
+);
+
+
+  // ✅ Apply price filter to all results
+  if (price < filters.priceRange[0] || price > filters.priceRange[1]) return false;
+
+  if (searchType === 'flights') {
+    const stops = item.outboundJourney?.segments?.length - 1 || 0;
+    if (filters.stops === 'direct' && stops > 0) return false;
+    if (filters.stops === '1stop' && stops !== 1) return false;
+  }
+
+
+
+  return true;
+});
+
+  
+  const Weighted_filteredResults = [...searchResults]
   .filter(item => {
     if (searchType !== 'flights') return true;
 
@@ -711,7 +730,7 @@ const TravelApp = () => {
                   </div>
                 )}
                 
-                {filteredResults.length === 0 ? (
+                {(searchType === 'flights' ? Weighted_filteredResults : filteredResults).length === 0 ?(
                   <div className="text-center py-12">
                     <div className="text-gray-400 mb-4 flex justify-center">
                       {searchType === 'flights' ? <Plane size={48} /> : <Hotel size={48} />}
@@ -720,7 +739,7 @@ const TravelApp = () => {
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    {filteredResults.map((item, index) => (
+                    {(searchType === 'flights' ? Weighted_filteredResults : filteredResults).map((item, index) => (
                       <div key={item.uniqueId || `result-${index}`} className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow">
                         <div className="flex items-center justify-between">
                           <div className="flex-1">
@@ -930,7 +949,7 @@ const TravelApp = () => {
                           <div className="flex items-center space-x-4">
                             <div className="text-right">
                               <div className="text-2xl font-bold text-blue-600">
-                                ${item.pricing?.total || item.pricing?.grandTotal || item.price || '299'}
+                                ${item.pricing?.total || item.pricing?.grandTotal || item.price || item.offers?.[0]?.price?.total || 'N/A'}
                               </div>
                               <div className="text-sm text-gray-600">
                                 {item.pricing?.currency || 'USD'} {searchType === 'flights' ? 'per person' : 'per night'}
