@@ -2,7 +2,7 @@
 
 ![System Architecture 4-Tier](assets/images/Summer_build_diagram.png)
 
-[Program Demo](https://youtu.be/nVTvcB19b_4)
+[![🎥 Program Demo](https://img.youtube.com/vi/nVTvcB19b_4/0.jpg)](https://youtu.be/nVTvcB19b_4)
 
 [🚀 Devpost](https://devpost.com/software/404-not-found-insert-app-name-here)
 
