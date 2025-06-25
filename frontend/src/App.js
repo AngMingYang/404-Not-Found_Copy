@@ -1,6 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Search, MapPin, Calendar, Users, Plane, Hotel, Star, Clock, Filter, Menu, X, ChevronRight, Globe, Heart, User, ChevronDown } from 'lucide-react';
 
+
+
+
 const TravelApp = () => {
   const [activeTab, setActiveTab] = useState('search');
   const [searchType, setSearchType] = useState('flights');
@@ -9,6 +12,8 @@ const TravelApp = () => {
   const [favorites, setFavorites] = useState([]);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
+  const [sortWeight, setSortWeight] = useState(50);
+
   
   // Filter state
   const [filters, setFilters] = useState({
@@ -37,6 +42,46 @@ const TravelApp = () => {
   const API_BASE = window.location.hostname === 'localhost' 
     ? 'http://localhost:8080' 
     : 'https://your-api-domain.com';
+
+
+  // Trippy Logo Component
+  const TrippyLogo = ({ size = 'medium', showText = true }) => {
+    const sizes = {
+      small: { pin: 'w-8 h-10', plane: 'w-4 h-4', text: 'text-sm' },
+      medium: { pin: 'w-12 h-16', plane: 'w-6 h-6', text: 'text-lg' },
+      large: { pin: 'w-24 h-32', plane: 'w-12 h-12', text: 'text-2xl' }
+    };
+    
+    const currentSize = sizes[size];
+    
+    return (
+      <div className="flex items-center space-x-2">
+        <div className="relative">
+          {/* Pin shape using CSS */}
+          <div 
+            className={`${currentSize.pin} relative bg-blue-500 mx-auto`}
+            style={{
+              clipPath: "path('M60 0C93 0 120 27 120 60C120 100 60 160 60 160C60 160 0 100 0 60C0 27 27 0 60 0Z')",
+              transform: 'scale(0.5)' // Scale down the clip-path since it's designed for 120px
+            }}
+          >
+            {/* Plane icon inside pin */}
+            <div 
+              className={`absolute top-1/3 left-1/2 transform -translate-x-1/2 -translate-y-1/2 rotate-45 ${currentSize.plane} bg-white`}
+              style={{
+                clipPath: 'polygon(50% 0%, 60% 25%, 100% 40%, 60% 50%, 70% 100%, 50% 85%, 30% 100%, 40% 50%, 0% 40%, 40% 25%)'
+              }}
+            />
+          </div>
+        </div>
+        {showText && (
+          <span className={`font-bold text-blue-600 ${currentSize.text}`}>
+            Trippy
+          </span>
+        )}
+      </div>
+    );
+  };
 
   // Helper functions
   const getAirlineName = (code) => {
@@ -98,17 +143,75 @@ const TravelApp = () => {
   }, []);
 
   // Apply filters
-  const filteredResults = searchResults.filter(item => {
-    if (searchType === 'flights') {
-      const price = parseFloat(item.pricing?.total || item.pricing?.grandTotal || item.price || 0);
-      if (price < filters.priceRange[0] || price > filters.priceRange[1]) return false;
-      
-      const stops = item.outboundJourney?.segments?.length - 1 || 0;
-      if (filters.stops === 'direct' && stops > 0) return false;
-      if (filters.stops === '1stop' && stops !== 1) return false;
-    }
+  
+const filteredResults = searchResults.filter(item => {
+
+
+
+const price = parseFloat(
+  item.pricing?.total ||
+  item.pricing?.grandTotal ||
+  item.price?.total ||
+  item.price?.amount ||
+  item.offers?.[0]?.price?.total || // ✅ Add this line
+  item.price ||
+  0
+);
+
+
+  // ✅ Apply price filter to all results
+  if (price < filters.priceRange[0] || price > filters.priceRange[1]) return false;
+
+  if (searchType === 'flights') {
+    const stops = item.outboundJourney?.segments?.length - 1 || 0;
+    if (filters.stops === 'direct' && stops > 0) return false;
+    if (filters.stops === '1stop' && stops !== 1) return false;
+  }
+
+
+
+  return true;
+});
+
+  
+  const Weighted_filteredResults = [...searchResults]
+  .filter(item => {
+    if (searchType !== 'flights') return true;
+
+    const price = parseFloat(item.pricing?.total || item.pricing?.grandTotal || item.price || 0);
+    const durationStr = item.outboundJourney?.duration || '';
+    const match = durationStr.match(/PT(\d+H)?(\d+M)?/);
+    const hours = match?.[1] ? parseInt(match[1]) : 0;
+    const minutes = match?.[2] ? parseInt(match[2]) : 0;
+    const durationMins = hours * 60 + minutes;
+
+    if (price < filters.priceRange[0] || price > filters.priceRange[1]) return false;
+    const stops = item.outboundJourney?.segments?.length - 1 || 0;
+    if (filters.stops === 'direct' && stops > 0) return false;
+    if (filters.stops === '1stop' && stops !== 1) return false;
     return true;
+  })
+  .sort((a, b) => {
+    if (searchType !== 'flights') return 0;
+
+    const getPrice = (item) => parseFloat(item.pricing?.total || item.pricing?.grandTotal || item.price || 0);
+    const getDuration = (item) => {
+      const match = item.outboundJourney?.duration?.match(/PT(\d+H)?(\d+M)?/);
+      const hours = match?.[1] ? parseInt(match[1]) : 0;
+      const minutes = match?.[2] ? parseInt(match[2]) : 0;
+      return hours * 60 + minutes;
+    };
+
+    const aPrice = getPrice(a), bPrice = getPrice(b);
+    const aDur = getDuration(a), bDur = getDuration(b);
+
+    const weight = sortWeight / 100;
+    const aScore = aPrice * (1 - weight) + aDur * weight;
+    const bScore = bPrice * (1 - weight) + bDur * weight;
+
+    return aScore - bScore;
   });
+
 
   // Search function
   const handleSearch = useCallback(async () => {
@@ -244,7 +347,7 @@ const TravelApp = () => {
         <button onClick={() => setSidebarOpen(true)}>
           <Menu size={24} />
         </button>
-        <h1 className="text-xl font-bold text-blue-600">TravelApp</h1>
+        <TrippyLogo size="small" showText={true} />
         <div></div>
       </div>
 
@@ -260,7 +363,7 @@ const TravelApp = () => {
         {/* Sidebar */}
         <div className={`fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-lg transform transition-transform duration-300 ease-in-out ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0 lg:static lg:inset-0`}>
           <div className="flex items-center justify-between h-16 px-4 border-b">
-            <h1 className="text-xl font-bold text-blue-600">TravelApp</h1>
+            <TrippyLogo size="medium" showText={true} />
             <button onClick={() => setSidebarOpen(false)} className="lg:hidden">
               <X size={24} />
             </button>
@@ -321,6 +424,7 @@ const TravelApp = () => {
                   <div className="max-w-6xl mx-auto">
                     <div className="mb-12">
                       <h1 className="text-5xl md:text-6xl font-bold text-white leading-tight">
+                        <TrippyLogo size="large" showText={true} />
                         {searchType === 'hotels' ? 'Find your place to stay' : 'Find your perfect flight'}
                       </h1>
                     </div>
@@ -544,6 +648,9 @@ const TravelApp = () => {
                 </div>
                 
                 {/* Filter Panel */}
+
+                
+                
                 {showFilters && (
                   <div className="bg-white rounded-lg shadow-md p-6 mb-6 border">
                     <h3 className="text-lg font-semibold mb-4">Filters</h3>
@@ -564,29 +671,56 @@ const TravelApp = () => {
                       </div>
                       
                       {searchType === 'flights' && (
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">Stops</label>
-                          <select
-                            value={filters.stops}
-                            onChange={(e) => handleFilterChange('stops', e.target.value)}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
-                          >
-                            <option value="any">Any number of stops</option>
-                            <option value="direct">Direct flights only</option>
-                            <option value="1stop">1 stop maximum</option>
-                          </select>
-                        </div>
-                      )}
+                          <>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-2">Stops</label>
+                              <select
+                                value={filters.stops}
+                                onChange={(e) => handleFilterChange('stops', e.target.value)}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+                              >
+                                <option value="any">Any number of stops</option>
+                                <option value="direct">Direct flights only</option>
+                                <option value="1stop">1 stop maximum</option>
+                              </select>
+                            </div>
+
+                            {/* 👉 New Slider */}
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-2">
+                                Balance (Price vs Duration ): {sortWeight}%
+                              </label>
+                              <input
+                                type="range"
+                                min="0"
+                                max="100"
+                                value={sortWeight}
+                                onChange={(e) => setSortWeight(parseInt(e.target.value))}
+                                className="w-full"
+                              />
+                              <div className="text-sm text-gray-500 mt-1">
+                                {sortWeight < 50
+                                  ? `Prioritize Price (${100 - sortWeight}%)`
+                                  : sortWeight > 50
+                                  ? `Prioritize Duration (${sortWeight}%)`
+                                  : 'Equal Priority'}
+                              </div>
+                            </div>
+                          </>
+                        )}
+
                       
                       <div className="flex items-end">
                         <button
-                          onClick={() => setFilters({
+                          onClick={() => {setFilters({
                             priceRange: [0, 5000],
                             stops: 'any',
                             airlines: [],
                             departureTime: 'any',
                             duration: 'any'
-                          })}
+                          });
+                           setSortWeight(50); // ← Add this line
+                        }}
                           className="px-4 py-2 text-blue-600 border border-blue-600 rounded-lg hover:bg-blue-50 transition-colors"
                         >
                           Clear Filters
@@ -596,7 +730,7 @@ const TravelApp = () => {
                   </div>
                 )}
                 
-                {filteredResults.length === 0 ? (
+                {(searchType === 'flights' ? Weighted_filteredResults : filteredResults).length === 0 ?(
                   <div className="text-center py-12">
                     <div className="text-gray-400 mb-4 flex justify-center">
                       {searchType === 'flights' ? <Plane size={48} /> : <Hotel size={48} />}
@@ -605,7 +739,7 @@ const TravelApp = () => {
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    {filteredResults.map((item, index) => (
+                    {(searchType === 'flights' ? Weighted_filteredResults : filteredResults).map((item, index) => (
                       <div key={item.uniqueId || `result-${index}`} className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow">
                         <div className="flex items-center justify-between">
                           <div className="flex-1">
@@ -815,7 +949,7 @@ const TravelApp = () => {
                           <div className="flex items-center space-x-4">
                             <div className="text-right">
                               <div className="text-2xl font-bold text-blue-600">
-                                ${item.pricing?.total || item.pricing?.grandTotal || item.price || '299'}
+                                ${item.pricing?.total || item.pricing?.grandTotal || item.price || item.offers?.[0]?.price?.total || 'N/A'}
                               </div>
                               <div className="text-sm text-gray-600">
                                 {item.pricing?.currency || 'USD'} {searchType === 'flights' ? 'per person' : 'per night'}

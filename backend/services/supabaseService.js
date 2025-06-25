@@ -557,6 +557,27 @@ const createTables = async () => {
     }
 };
 
+
+
+
+async function DbIataCode(searchQuery) {
+  const { data, error } = await supabase
+    .from('IATA') //table IATA
+    .select('"Name", "IATA"') // Select both Name and IATA columns
+    .or(`"Name".ilike.%${searchQuery}%`)
+
+
+
+  if (error) {
+    console.error('[supabaseService.findIataCode]', error);
+    return [];
+  }
+
+  // Returns an array of objects like: { Name: 'Singapore Changi Airport', IATA: 'SIN' }
+  return data;
+}
+
+
 module.exports = {
     // Core client
     supabase,
@@ -571,6 +592,8 @@ module.exports = {
     routeService,
     analyticsService,
     cacheService,
+
+    DbIataCode,
     
     // Direct exports for convenience
     getUserProfile: userService.getUserProfile,

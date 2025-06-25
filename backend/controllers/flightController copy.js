@@ -2,7 +2,55 @@ const amadeusService = require('../services/amadeusService');
 const cacheService = require('../services/cacheService');
 const { body, query, validationResult } = require('express-validator');
 
-const { DbIataCode } = require('../services/supabaseService');
+
+
+//Added excell to convert names to IATA 22/6/25
+
+
+const parsedAirports = airports.map(row => {
+    return {
+        airport_id: row[0],
+        name: row[1],
+        city: row[2],
+        country: row[3],
+        iata: row[4],
+        icao: row[5],
+        latitude: row[6],
+        longitude: row[7],
+        altitude: row[8],
+        timezone: row[9],
+        dst: row[10],
+        tz_database_timezone: row[11],
+        type: row[12],
+        source: row[13]
+    };
+});
+
+
+const XLSX = require('xlsx');
+const path = require('path');
+
+const workbook = XLSX.readFile(path.join(__dirname, 'airports_cleaned.xlsx'));
+const sheet = workbook.Sheets[workbook.SheetNames[0]];
+const airports = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+
+
+
+//helper function for searchFlights
+function findIataCode(query) {
+    const lowerQuery = query.toLowerCase();
+    const results = airports.filter(a =>
+        (a.Name && a.Name.toLowerCase().includes(lowerQuery)) ||
+        (a.City && a.City.toLowerCase().includes(lowerQuery))
+    );
+    return results.filter(r => r.IATA).map(r => ({ 
+        name: r.Name, 
+        city: r.City, 
+        iata: r.IATA 
+    }));
+}
+
+
 
 /**
  * Search flights
@@ -12,9 +60,9 @@ const { DbIataCode } = require('../services/supabaseService');
 const searchFlights = async (req, res) => {
     try {
         // Handle both GET and POST requests
-        let searchParams = req.method === 'GET' ? req.query : req.body;
+        const searchParams = req.method === 'GET' ? req.query : req.body;
         
-        let  {
+        const {
             origin,
             destination,
             departureDate,
@@ -58,86 +106,50 @@ const searchFlights = async (req, res) => {
                 returnDate
             });
         }
-        
-        // ===============================
-        // STEP: Convert Origin/Destination if needed
-        // ===============================
-        console.log(`[searchFlights] Incoming request`, {
-        method: req.method,
-        origin,
-        destination,
-        departureDate,
-        returnDate
-        });
 
-        // Origin
+        //name to IATA conversion
+
+        // Check if origin is a 3-letter IATA code
         if (origin.length !== 3) {
-        const matches = await DbIataCode(origin);
-        const prev_origin = origin;
-
-        if (matches.length === 1) {
-            origin = matches[0].IATA;
-            console.log(`[searchFlights] ALERT: origin ${prev_origin} -> ${matches[0].Name} (${origin})`);
-        } else if (matches.length > 1) {
-            const matchList = matches
-            .slice(0, 10)
-            .map(m => `${m.Name} (${m.IATA})`)
-            .join(', ');
-            return res.status(400).json({
-            success: false,
-            error: `Ambiguous origin name. Matches found: ${matchList}`
-            });
-        } else {
-            return res.status(400).json({
-            success: false,
-            error: `No IATA code found for origin: ${origin}`
-            });
-        }
+            const matches = findIataCode(origin);
+            if (matches.length === 1) {
+                origin = matches[0].iata;
+            } else if (matches.length > 1) {
+                return res.status(400).json({
+                    success: false,
+                    error: `Ambiguous origin name. Matches found:`,
+                    matches: matches.slice(0, 10) // List first 10
+                });
+            } else {
+                return res.status(400).json({
+                    success: false,
+                    error: `No IATA code found for origin: ${origin}`
+                });
+            }
         }
 
-        // Destination
+        // Check if destination is a 3-letter IATA code
         if (destination.length !== 3) {
-        const matches = await DbIataCode(destination);
-        const prev_destination = destination;
-
-        if (matches.length === 1) {
-            destination = matches[0].IATA;
-            console.log(`[searchFlights] ALERT: destination ${prev_destination} -> ${matches[0].Name} (${destination})`);
-        } else if (matches.length > 1) {
-            const matchList = matches
-            .slice(0, 10)
-            .map(m => `${m.Name} (${m.IATA})`)
-            .join(', ');
-            return res.status(400).json({
-            success: false,
-            error: `Ambiguous destination name. Matches found: ${matchList}`
-            });
-        } else {
-            return res.status(400).json({
-            success: false,
-            error: `No IATA code found for destination: ${destination}`
-            });
-        }
+            const matches = findIataCode(destination);
+            if (matches.length === 1) {
+                destination = matches[0].iata;
+            } else if (matches.length > 1) {
+                return res.status(400).json({
+                    success: false,
+                    error: `Ambiguous destination name. Matches found:`,
+                    matches: matches.slice(0, 10)
+                });
+            } else {
+                return res.status(400).json({
+                    success: false,
+                    error: `No IATA code found for destination: ${destination}`
+                });
+            }
         }
 
-        console.log(`[searchFlights] Pre-IATA conversion`, {
-        origin,
-        destination,
-        originLength: origin.length,
-        destinationLength: destination.length
-        });
 
 
-
-
-
-
-        // ===============================
-        // STEP: Convert Origin/Destination if needed
-        // ===============================  
-
-
-
+        //name to IATA conversion^
 
         // Create cache key
         const cacheKey = `flights:${origin}:${destination}:${departureDate}:${returnDate || 'oneway'}:${adults}:${children}:${infants}:${travelClass}`;
@@ -722,8 +734,7 @@ const getFlightStatus = async (req, res) => {
     }
 };
 
-// Get the top matching airport's IATA code given a city or airport name  // Redundant code
-/*
+// Get the top matching airport's IATA code given a city or airport name
 async function getIataCode(cityOrAirportName) {
   try {
     const amadeusResult = await amadeusService.searchAirportsAndCities(cityOrAirportName, {
@@ -742,62 +753,6 @@ async function getIataCode(cityOrAirportName) {
   }
 }
 
-*/
-
-
-const XLSX = require('xlsx');
-const path = require('path');
-
-// Load and parse the airports data
-const workbook = XLSX.readFile(path.join(__dirname, 'airports_cleaned.xlsx'));
-const sheet = workbook.Sheets[workbook.SheetNames[0]];
-const rawRows = XLSX.utils.sheet_to_json(sheet, { header: 1 }); // No headers
-const parsedAirportData = rawRows.slice(1).map(row => ({ // Skip first row
-    airport_id: row[0],
-    name: row[1],
-    city: row[2],
-    country: row[3],
-    iata: row[4]
-}));
-
-
-// Helper function
-function findIataCode(query) {
-    const lowerQuery = query.toLowerCase().trim();
-
-    // 1️⃣ Try exact match by Name
-    let results = parsedAirportData.filter(a =>
-        a.name && a.name.toLowerCase().trim() === lowerQuery
-    );
-    if (results.length === 0) {
-        // 2️⃣ Try partial match by Name
-        results = parsedAirportData.filter(a =>
-            a.name && a.name.toLowerCase().includes(lowerQuery)
-        );
-    }
-
-    // 3️⃣ If still no results by Name, try exact match by City
-    if (results.length === 0) {
-        results = parsedAirportData.filter(a =>
-            a.city && a.city.toLowerCase().trim() === lowerQuery
-        );
-    }
-
-    // 4️⃣ If still no results by City, try partial match by City
-    if (results.length === 0) {
-        results = parsedAirportData.filter(a =>
-            a.city && a.city.toLowerCase().includes(lowerQuery)
-        );
-    }
-
-    // Final: Return results with valid IATA codes
-    return results.filter(r => r.iata).map(r => ({ 
-        name: r.name, 
-        city: r.city, 
-        iata: r.iata 
-    }));
-}
-
 
 module.exports = {
     searchFlights,
@@ -807,6 +762,5 @@ module.exports = {
     getAirportsByCity,
     getFlightOffer,
     getFlightStatus,
-    //getIataCode,
-    findIataCode
+    getIataCode
 };

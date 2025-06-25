@@ -13,6 +13,9 @@ class SimpleCache {
         const expiryTime = Date.now() + (ttlSeconds * 1000);
         this.cache.set(key, value);
         this.ttlMap.set(key, expiryTime);
+
+        console.log("[from cacheServices.js : SimpleCache]")
+        console.log('Cache contents:', Array.from(this.cache.entries()));
         
         // Clean up expired entries periodically
         this.cleanup();
@@ -69,12 +72,17 @@ const cache = new SimpleCache();
 
 // Cache key generators
 const generateCacheKey = (prefix, ...parts) => {
-    return `${prefix}:${parts.join(':')}`;
+    // Convert all parts to lowercase to ensure case-insensitivity
+    const lowerParts = parts.map(p => 
+      typeof p === 'string' ? p.toLowerCase() : JSON.stringify(p).toLowerCase()
+    );
+    return `${prefix}:${lowerParts.join(':')}`;
 };
 
 // Cache wrapper for functions
 const withCache = async (key, fetchFunction, ttlSeconds = 300) => {
     // Try to get from cache first
+
     const cachedResult = cache.get(key);
     if (cachedResult !== undefined) {
         console.log(`Cache HIT: ${key}`);
@@ -86,6 +94,7 @@ const withCache = async (key, fetchFunction, ttlSeconds = 300) => {
     try {
         const result = await fetchFunction();
         cache.set(key, result, ttlSeconds);
+        console.log('fetching and storing catch succes');
         return result;
     } catch (error) {
         console.error(`Cache fetch error for ${key}:`, error);

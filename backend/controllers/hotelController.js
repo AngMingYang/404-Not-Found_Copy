@@ -1,6 +1,8 @@
 const amadeusService = require('../services/amadeusService');
 const cacheService = require('../services/cacheService');
 
+const { DbIataCode } = require('../services/supabaseService');
+
 /**
  * Search hotels
  * POST /api/hotels/search
@@ -39,9 +41,60 @@ const searchHotels = async (req, res) => {
             });
         }
 
+        
+
         try {
             // Step 1: Convert city name to proper Amadeus city code
-            const cityCode = getCityCode(city);
+            //const cityCode = getCityCode(city);
+
+
+            
+            let cityCode = null;
+
+            if (city.length === 3 && /^[A-Z]{3}$/i.test(city)) {
+                // Assume city param already IATA code (3 letters)
+                cityCode = city.toUpperCase();
+            } else {
+                // Lookup city name in IATA database via DbIataCode
+                const matches = await DbIataCode(city);
+
+
+                if (!Array.isArray(matches)) {
+                    return res.status(500).json({
+                        success: false,
+                        error: 'Failed to lookup city code',
+                    });
+                    }
+
+
+
+                if (matches.length === 1) {
+                    cityCode = matches[0].IATA;
+                    console.log(`[searchHotels] City name "${city}" resolved to IATA code: ${cityCode}`);
+                } else if (matches.length > 1) {
+                    const matchList = matches
+                        .slice(0, 10)
+                        .map(m => `${m.Name} (${m.IATA})`)
+                        .join(', ');
+                    return res.status(400).json({
+                        success: false,
+                        error: `Ambiguous city name. Matches found: ${matchList}`
+                    });
+                } else {
+                    return res.status(400).json({
+                        success: false,
+                        error: `No IATA code found for city: ${city}`
+                    });
+                }
+            }
+
+
+
+
+
+
+
+
             console.log('🏨 City code mapping:', city, '->', cityCode);
             
             if (!cityCode) {
@@ -114,9 +167,10 @@ const searchHotels = async (req, res) => {
             const hotelIds = hotelListResult.data
                 .slice(0, Math.min(parseInt(max), 10)) // Limit to 10 for testing
                 .map(hotel => hotel.hotelId);
-
+            
             console.log('🏨 Getting offers for hotels:', hotelIds);
 
+            
             const offersParams = {
                 hotelIds,
                 adults: parseInt(adults),
@@ -127,7 +181,41 @@ const searchHotels = async (req, res) => {
             };
 
             console.log('🏨 Offers search params:', offersParams);
-            const offersResult = await amadeusService.searchHotelOffers(offersParams);
+
+
+
+
+
+
+
+
+            let offersResult = await amadeusService.searchHotelOffers(offersParams);
+
+            // If error, attempt extracting the invalid ids and remove them
+            if (!offersResult?.success && offersResult?.error?.code === 10604) {
+                console.warn('Invalid hotel ids detected. Attempting to remove and retry...');
+                const errorData = offersResult.error?.source?.parameter;
+
+                if (errorData && errorData.includes('hotelIds=')) {
+                    const invalidId = errorData.split('hotelIds=')[1];
+                    console.log(`Excluding invalid hotel id: ${invalidId}`);
+
+                    // Try again with filtered ids
+                    const filteredHotelIds = hotelIds.filter(id => id !== invalidId);
+                    offersParams.hotelIds = filteredHotelIds;
+
+                    offersResult = await amadeusService.searchHotelOffers(offersParams);
+                }
+            }
+
+
+            
+
+
+
+
+
+            
             console.log('🏨 Offers result:', offersResult);
 
             if (!offersResult) {
@@ -151,7 +239,7 @@ const searchHotels = async (req, res) => {
             // Step 5: Process and format results
             const processedHotels = (offersResult.data || []).map(hotelOffer => {
                 const hotel = hotelListResult.data.find(h => h.hotelId === hotelOffer.hotel?.hotelId);
-                
+
                 return {
                     id: hotelOffer.hotel?.hotelId || 'unknown',
                     type: 'hotel-offer',
@@ -183,20 +271,48 @@ const searchHotels = async (req, res) => {
                 };
             });
 
-            console.log(`🏨 Processed ${processedHotels.length} hotel offers`);
+            // Identify hotels that have NO pricing
+            const pricedHotelIds = new Set((offersResult.data || []).map(ho => ho.hotel?.hotelId));
+
+            const noPricingHotels = hotelListResult.data.filter(h => !pricedHotelIds.has(h.hotelId))
+                .map(hotel => {
+                    return {
+                        id: hotel.hotelId,
+                        type: 'hotel-offer',
+                        hotel: {
+                            name: hotel.name,
+                            rating: hotel.rating || 3,
+                            chainCode: hotel.chainCode,
+                            address: hotel.address || {},
+                            amenities: [],
+                            geoCode: hotel.geoCode || {}
+                        },
+                        offers: [],
+                        available: false
+                    };
+                });
+
+            // Final combined results
+            const finalResults = [
+                ...processedHotels,
+                ...noPricingHotels
+            ];
+
+            console.log(`🏨 Final result contains ${finalResults.length} hotels`);
 
             return res.json({
                 success: true,
                 data: {
-                    hotels: processedHotels,
+                    hotels: finalResults,
                     searchParams: { city, cityCode, checkIn, checkOut, adults, rooms },
-                    resultCount: processedHotels.length
+                    resultCount: finalResults.length
                 },
                 meta: {
                     searchTime: new Date().toISOString(),
                     cached: false
                 }
             });
+
 
         } catch (amadeusError) {
             console.error('🏨 Amadeus hotel search error:', amadeusError);
@@ -218,7 +334,7 @@ const searchHotels = async (req, res) => {
     }
 };
 
-
+/*
 // Add city code mapping function
 function getCityCode(cityName) {
     const cityMappings = {
@@ -269,6 +385,7 @@ function getCityCode(cityName) {
     
     return cityMappings[cityName.toLowerCase()] || null;
 }
+*/
 
 /**
  * Get hotel details by ID

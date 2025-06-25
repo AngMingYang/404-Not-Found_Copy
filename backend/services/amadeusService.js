@@ -38,8 +38,12 @@ const searchAirportsAndCities = async (keyword, options = {}) => {
     try {
         const searchParams = {
             keyword,
-            max: options.max || 10,
-            include: options.include || ['AIRPORTS'] // ['AIRPORTS', 'CITIES']
+            //max: options.max || 10,
+            page: {
+                limit: options.limit || 10  // Using page.limit instead of max
+            },
+            subType: options.subType || "AIRPORT,CITY",  // Changed from include to subType
+            view : "LIGHT"
         };
 
         const response = await amadeus.referenceData.locations.get(searchParams);
