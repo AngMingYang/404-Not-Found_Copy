@@ -272,6 +272,14 @@ The frontend uses a modern design with:
 2. **Frontend**: Add components in [`src/App.js`](frontend/src/App.js) or create separate component files
 3. **API Integration**: Use the [`apiCall`](frontend/src/App.js) function for backend communication
 
+
+### Future Areas for Improvement
+
+1. Lack of real data -> Implement Data scraping on existing sites: e.g Google flights, Singapore Airlines, MakeMyTrip.
+2. Implementation of customised user Learning Weights based on user metrics: Price, Distance, Carbon Emissions, Number of stops, Leg Room.
+   for extra personalisation experiences. As well as a feedback loop.
+
+
 ### Code Structure
 
 - **Controllers**: Handle business logic and API responses
